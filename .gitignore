@@ -1,0 +1,3 @@
+*.code-workspace
+apiKey.txt
+node_modules/

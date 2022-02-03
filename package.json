@@ -1,0 +1,21 @@
+{
+  "name": "gaspardsavoureuxbot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@discordjs/voice": "^0.6.0",
+    "discord-speech-recognition": "^2.2.0",
+    "discord-ytdl-core": "^5.0.4",
+    "discord.js": "^13.5.0",
+    "ffmpeg-static": "^4.4.1",
+    "libsodium-wrappers": "^0.7.9",
+    "ytdl-core": "^4.9.2",
+    "ytsr": "^3.6.0"
+  }
+}
