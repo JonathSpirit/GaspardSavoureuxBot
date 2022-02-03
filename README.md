@@ -26,3 +26,6 @@ and thats about it, I plan to upgrade with others functionality but this is basi
 
 # How to install it
 You will need node.js to use it
+
+# API key
+please put your api key in a project root file named "apiKey.txt" and copy paste your key in here.
