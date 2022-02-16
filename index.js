@@ -36,7 +36,6 @@ bot.on("speech", (msg) => {
     {
         try
         {
-            console.log("voice: " + msg.content);
             const sentence = msg.content.toLowerCase();
 
             if (sentence === "gaspard joue ma musique")
