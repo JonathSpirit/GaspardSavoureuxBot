@@ -106,6 +106,7 @@ bot.on("messageCreate", function (msg) {
     Commands.Cmd_stop.parse(msg, bot) ||
     Commands.Cmd_pause.parse(msg, bot) ||
     Commands.Cmd_unpause.parse(msg, bot) ||
+    Commands.Cmd_shuffle.parse(msg, bot) ||
     Commands.Cmd_skip.parse(msg, bot);
     
     if (commandUsed == true)

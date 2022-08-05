@@ -54,6 +54,23 @@ function playAudio(connection, path) {
     }
 }
 
+function shuffleArray(array) {
+    let currentIndex = array.length;
+    let randomIndex;
+
+    // While there remain elements to shuffle.
+    while (currentIndex != 0) {
+
+    // Pick a remaining element.
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex--;
+
+    // And swap it with the current element.
+    [array[currentIndex], array[randomIndex]] = [
+        array[randomIndex], array[currentIndex]];
+    }
+}
+
 async function playYoutubeAudio(connection, url) {
     try
     {
@@ -211,7 +228,7 @@ class Cmd_help extends Command {
         !play pour écouter une douce musique\n\
         !pause pour mettre en pause\n\
         !unpause pour enlever la pause\n\
-        !gaspard pour la recette du chef :)\n\
+        !shuffle pour randomiser la liste de lecture\n\
         !stop pour enlever toutes les musiques\n\
         !skip pour skip la musique actuelle");
     }
@@ -383,6 +400,26 @@ class Cmd_unpause extends Command {
 
 }
 
+class Cmd_shuffle extends Command {
+
+    static match(message) {
+        return message.content.startsWith("!shuffle");
+    }
+
+    static action(message, client) {
+        let connection = getVoiceConnection(message.member.voice.channel.guild.id);
+
+        if (!connection)
+        {// Le bot n'est pas encore connecter a un channel audio
+            return message.channel.send("Je suis pas dans un channel petit chef !");
+        }
+
+        shuffleArray(playerQueue);
+        updateInfoMessage();
+    }
+
+}
+
 module.exports = {
     Command : Command,
     Cmd_help : Cmd_help,
@@ -393,5 +430,6 @@ module.exports = {
     Cmd_skip : Cmd_skip,
     Cmd_pause : Cmd_pause,
     Cmd_unpause : Cmd_unpause,
+    Cmd_shuffle : Cmd_shuffle,
     playAudio : playAudio
 }
