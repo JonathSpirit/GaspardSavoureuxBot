@@ -19,23 +19,13 @@ const {
     MessageEmbed
 } = require('discord.js');
 
+const Utils = require("../utils/utils");
+
 let playerQueue = [];
 let player = createAudioPlayer();
 let lastGuildId = null;
 let messagePinned = null;
 let actualPlayedSoundName = "";
-
-function isValidHttpUrl(string) {
-    let url;
-
-    try {
-        url = new URL(string);
-    } catch (_) {
-        return false;  
-    }
-
-    return url.protocol === "http:" || url.protocol === "https:";
-}
 
 function playAudio(connection, path) {
     try
@@ -54,27 +44,20 @@ function playAudio(connection, path) {
     }
 }
 
-function shuffleArray(array) {
-    let currentIndex = array.length;
-    let randomIndex;
-
-    // While there remain elements to shuffle.
-    while (currentIndex != 0) {
-
-    // Pick a remaining element.
-    randomIndex = Math.floor(Math.random() * currentIndex);
-    currentIndex--;
-
-    // And swap it with the current element.
-    [array[currentIndex], array[randomIndex]] = [
-        array[randomIndex], array[currentIndex]];
-    }
-}
-
-async function playYoutubeAudio(connection, url) {
+async function playUrlAudio(connection, url) {
     try
     {
         let valid = true;
+
+        if ( !Utils.isYoutubeUrl(url) )
+        {
+            const searchResults = await ytsr(url, {limit:1});
+            console.log(searchResults);
+            if (searchResults.items.length > 0)
+            {
+                url = searchResults.items[0].url;
+            }
+        }
 
         var stream = await ytdl(url, {
             highWaterMark: 1 << 25,
@@ -82,25 +65,6 @@ async function playYoutubeAudio(connection, url) {
             filter: 'audioonly',
         })
         .on("error", () => valid=false);
-
-        if (!valid)
-        {
-            valid = true;
-
-            const searchResults = await ytsr(url, {limit:1});
-            console.log(searchResults);
-            if (searchResults.items.length > 0)
-            {
-                url = searchResults.items[0].url;
-            }
-
-            stream = await ytdl(url, {
-                highWaterMark: 1 << 25,
-                opusEncoded: true,
-                filter: 'audioonly',
-            })
-            .on("error", () => valid=false);
-        }
 
         if (valid)
         {
@@ -126,7 +90,7 @@ async function updateInfoMessage() {
     dataEmbed.addField("musique actuel", actualPlayedSoundName);
 
     await playerQueue.forEach((link, index) => {
-        if ( isValidHttpUrl(link) )
+        if ( Utils.isValidHttpUrl(link) )
         {
             dataEmbed.addField("musique "+index, link)
                 .setURL(link);
@@ -146,7 +110,7 @@ async function updateInfoMessage() {
 async function pushSound(connection, arg) {
     if (player.state.status == 'idle')
     {
-        await playYoutubeAudio(connection, arg)
+        await playUrlAudio(connection, arg)
             .then(() => {
                 updateInfoMessage();
             });
@@ -174,7 +138,7 @@ player.on(AudioPlayerStatus.Idle, () => {
     {
         if (playerQueue.length > 0)
         {
-            playYoutubeAudio(connection, playerQueue[0])
+            playUrlAudio(connection, playerQueue[0])
             .then(() => {
                 updateInfoMessage();
             });
@@ -414,7 +378,7 @@ class Cmd_shuffle extends Command {
             return message.channel.send("Je suis pas dans un channel petit chef !");
         }
 
-        shuffleArray(playerQueue);
+        Utils.shuffleArray(playerQueue);
         updateInfoMessage();
     }
 
