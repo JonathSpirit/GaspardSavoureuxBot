@@ -51,7 +51,7 @@ bot.on("speech", (msg) => {
                 
                 Commands.Cmd_play.parse(msg, bot);
             }
-            else if ( sentence.startsWith('gaspard joue la musique') )
+            else if ( sentence.startsWith('gaspard joue') )
             {
                 msg.content = "!play "+sentence.slice(24);
                 Commands.Cmd_play.parse(msg, bot);
@@ -119,4 +119,4 @@ bot.on("messageCreate", function (msg) {
 var fs = require('fs');
 var apiKey = fs.readFileSync("apiKey.txt", 'utf8');
 
-bot.login(apiKey);
+bot.login( apiKey.replace(/[^a-zA-Z0-9.]/g, "") );
