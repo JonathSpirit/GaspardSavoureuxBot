@@ -87,17 +87,17 @@ async function updateInfoMessage() {
         .setColor('#0099ff')
         .setTitle('Liste des musiques');
         
-    dataEmbed.addField("musique actuel", actualPlayedSoundName);
+    dataEmbed.addFields({name: "musique actuel", value: actualPlayedSoundName});
 
     await playerQueue.forEach((link, index) => {
         if ( Utils.isValidHttpUrl(link) )
         {
-            dataEmbed.addField("musique "+index, link)
+            dataEmbed.addFields({name: "musique "+index, value: link})
                 .setURL(link);
         }
         else
         {
-            dataEmbed.addField("musique "+index, link);
+            dataEmbed.addFields({name: "musique "+index, value: link});
         }
     });
 
