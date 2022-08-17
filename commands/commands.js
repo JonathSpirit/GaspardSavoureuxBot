@@ -19,6 +19,9 @@ const {
     MessageEmbed
 } = require('discord.js');
 
+const fetch = require('isomorphic-unfetch')
+const { getData, getPreview, getTracks, getDetails } = require('spotify-url-info')(fetch)
+
 const Utils = require("../utils/utils");
 
 let playerQueue = [];
@@ -259,7 +262,18 @@ class Cmd_play extends Command {
         args.shift();
         let arg = args.join(" ");
 
-        pushSound(connection, arg);
+        if (Utils.isSpotifyUrl(arg))
+        {
+            getPreview(arg).then(data => {
+                arg = data['title'] + ' ' + data['artist'];
+                console.log( 'spotify: ' + arg );
+                pushSound(connection, arg);
+            });
+        }
+        else
+        {
+            pushSound(connection, arg);
+        }
     }
 
 }

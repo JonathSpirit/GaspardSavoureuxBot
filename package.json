@@ -14,7 +14,9 @@
     "discord-ytdl-core": "^5.0.4",
     "discord.js": "^13.5.0",
     "ffmpeg-static": "^4.4.1",
+    "isomorphic-unfetch": "^3.1.0",
     "libsodium-wrappers": "^0.7.9",
+    "spotify-url-info": "^3.1.4",
     "ytdl-core": "^4.9.2",
     "ytsr": "^3.6.0"
   }

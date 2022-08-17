@@ -4,6 +4,11 @@ function isYoutubeUrl(string) {
     return regex.test(string);
 }
 
+function isSpotifyUrl(string) {
+    let regex = new RegExp('(?:https:\\/\\/)?open\\.spotify\\.com\\/track\\/[a-zA-Z0-9]*(?:\\?si=[a-zA-Z0-9]*)?', 'g');
+    return regex.test(string);
+}
+
 function isValidHttpUrl(string) {
     let url;
 
@@ -36,5 +41,6 @@ function shuffleArray(array) {
 module.exports = {
     isYoutubeUrl : isYoutubeUrl,
     isValidHttpUrl : isValidHttpUrl,
-    shuffleArray : shuffleArray
+    shuffleArray : shuffleArray,
+    isSpotifyUrl : isSpotifyUrl
 }
