@@ -268,7 +268,7 @@ class Cmd_play extends Command {
                 arg = data['title'] + ' ' + data['artist'];
                 console.log( 'spotify: ' + arg );
                 pushSound(connection, arg);
-            });
+            }).catch(err => console.log(err));
         }
         else
         {
