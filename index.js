@@ -7,7 +7,8 @@
 const {
     Client,
     Intents,
-    Util
+    Partials,
+    GatewayIntentBits
 } = require('discord.js');
 
 const {
@@ -24,10 +25,11 @@ const InfoCenter = require("./infoCenter/infoCenter");
 
 const bot = new Client({
     intents: [
-        Intents.FLAGS.GUILD_VOICE_STATES,
-        Intents.FLAGS.GUILDS,
-        Intents.FLAGS.GUILD_MESSAGES
-    ]
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ], partials: [Partials.Channel]
 });
 
 addSpeechEvent(bot, { lang: "fr-FR" });

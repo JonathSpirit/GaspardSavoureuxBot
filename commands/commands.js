@@ -16,7 +16,7 @@ const {
 
 const {
     MessageEditOptions,
-    MessageEmbed
+    EmbedBuilder
 } = require('discord.js');
 
 const fetch = require('isomorphic-unfetch')
@@ -86,7 +86,7 @@ async function playUrlAudio(connection, url) {
 
 // node-ytsr
 async function updateInfoMessage() {
-    let dataEmbed = new MessageEmbed()
+    let dataEmbed = new EmbedBuilder()
         .setColor('#0099ff')
         .setTitle('Liste des musiques');
         
