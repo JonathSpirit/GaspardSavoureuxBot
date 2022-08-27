@@ -72,14 +72,20 @@ function updateInfoMessage() {
     if (playerQueue.length == 0) {
         dataEmbed.addFields({name: "aucune musique est jouée !", value: "!play <URL> ou <MOT CLES>"});
     } else {
-        playerQueue.forEach((song, index) => {
+        playerQueue.every((song, index) => {
             if (index == 0) {
                 dataEmbed.addFields({name: "musique actuel, [par "+song.initiator+"] :",
                     value: '['+song.title+']('+song.youtubeUrl+')' + ' - ' + song.artist + ' - (' + song.length + ')'});
+            }
+            else if (index > 6) {
+                dataEmbed.addFields({name: "encore "+(playerQueue.length-index)+" musiques en attente ...",
+                    value: 'patience petit chef !'});
+                return false;
             } else {
                 dataEmbed.addFields({name: "musique suivante "+index+", [par "+song.initiator+"] :",
                     value: '['+song.title+']('+song.youtubeUrl+')' + ' - ' + song.artist + ' - (' + song.length + ')'});
             }
+            return true;
         });
     }
 
