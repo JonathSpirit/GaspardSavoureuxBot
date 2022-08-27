@@ -7,8 +7,7 @@ class InfoCenter {
         await textChannel.messages.fetchPinned()
             .then( (messages) => { 
                     pinnedMessages = messages.filter(msg => msg.author.bot);
-                }
-                )
+                })
             .catch(console.error);
 
         if (pinnedMessages.size > 0) {

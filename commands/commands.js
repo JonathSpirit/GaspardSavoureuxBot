@@ -1,9 +1,6 @@
 //https://www.npmjs.com/package/discord-ytdl-core
 
 const ytdl = require("discord-ytdl-core");
-const ytsr = require('ytsr');
-
-const InfoCenter = require("../infoCenter/infoCenter");
 
 const {
     joinVoiceChannel,
@@ -19,23 +16,20 @@ const {
     EmbedBuilder
 } = require('discord.js');
 
-const fetch = require('isomorphic-unfetch')
-const { getData, getPreview, getTracks, getDetails } = require('spotify-url-info')(fetch)
+const {Song} = require("../playlist/song");
 
+const InfoCenter = require("../infoCenter/infoCenter");
 const Utils = require("../utils/utils");
 
 let playerQueue = [];
 let player = createAudioPlayer();
 let lastGuildId = null;
 let messagePinned = null;
-let actualPlayedSoundName = "";
 
 function playAudio(connection, path) {
     try
     {
         const audio = createAudioResource(path);
-
-        connection.subscribe(player);
 
         player.play(audio);
 
@@ -47,22 +41,12 @@ function playAudio(connection, path) {
     }
 }
 
-async function playUrlAudio(connection, url) {
+async function playUrlAudio(connection, youtubeUrl) {
     try
     {
         let valid = true;
 
-        if ( !Utils.isYoutubeUrl(url) )
-        {
-            const searchResults = await ytsr(url, {limit:1});
-            console.log(searchResults);
-            if (searchResults.items.length > 0)
-            {
-                url = searchResults.items[0].url;
-            }
-        }
-
-        var stream = await ytdl(url, {
+        var stream = await ytdl(youtubeUrl, {
             highWaterMark: 1 << 25,
             opusEncoded: true,
             filter: 'audioonly',
@@ -71,11 +55,7 @@ async function playUrlAudio(connection, url) {
 
         if (valid)
         {
-            actualPlayedSoundName = url;
-
             const resource = createAudioResource(stream, { inputType: StreamType.Opus });
-
-            connection.subscribe(player);
             player.play(resource);
         }
 
@@ -84,25 +64,24 @@ async function playUrlAudio(connection, url) {
     }
 }
 
-// node-ytsr
-async function updateInfoMessage() {
+function updateInfoMessage() {
     let dataEmbed = new EmbedBuilder()
         .setColor('#0099ff')
         .setTitle('Liste des musiques');
-        
-    dataEmbed.addFields({name: "musique actuel", value: actualPlayedSoundName});
-
-    await playerQueue.forEach((link, index) => {
-        if ( Utils.isValidHttpUrl(link) )
-        {
-            dataEmbed.addFields({name: "musique "+index, value: link})
-                .setURL(link);
-        }
-        else
-        {
-            dataEmbed.addFields({name: "musique "+index, value: link});
-        }
-    });
+    
+    if (playerQueue.length == 0) {
+        dataEmbed.addFields({name: "aucune musique est jouée !", value: "!play <URL> ou <MOT CLES>"});
+    } else {
+        playerQueue.forEach((song, index) => {
+            if (index == 0) {
+                dataEmbed.addFields({name: "musique actuel, [par "+song.initiator+"] :",
+                    value: '['+song.title+']('+song.youtubeUrl+')' + ' - ' + song.artist + ' - (' + song.length + ')'});
+            } else {
+                dataEmbed.addFields({name: "musique suivante "+index+", [par "+song.initiator+"] :",
+                    value: '['+song.title+']('+song.youtubeUrl+')' + ' - ' + song.artist + ' - (' + song.length + ')'});
+            }
+        });
+    }
 
     const dataEmbedArray = [dataEmbed];
     messagePinned.edit({embeds: dataEmbedArray})
@@ -110,22 +89,18 @@ async function updateInfoMessage() {
         .catch(err => console.log(err));
 }
 
-async function pushSound(connection, arg) {
-    if (player.state.status == 'idle')
-    {
-        await playUrlAudio(connection, arg)
-            .then(() => {
-                updateInfoMessage();
-            });
-        
-        console.log("playing");
-    }
-    else
-    {
-        playerQueue.push(arg);
-        await updateInfoMessage();
+async function pushSound(connection, song) {
+    if (song.valid) {
+        console.log("pushing: "+song.title);
+        playerQueue.push(song);
 
-        console.log("pushing");
+        if (player.state.status == 'idle') {
+            await playUrlAudio(connection, song.youtubeUrl).then(() => updateInfoMessage());
+        } else {
+            await updateInfoMessage();
+        }
+    } else {
+        console.log("not a valid song !");
     }
 }
 
@@ -137,27 +112,19 @@ player.on(AudioPlayerStatus.Idle, () => {
 	console.log('The audio player has started idle!');
     let connection = getVoiceConnection(lastGuildId);
 
-    if (connection)
-    {
-        if (playerQueue.length > 0)
-        {
-            playUrlAudio(connection, playerQueue[0])
-            .then(() => {
-                updateInfoMessage();
-            });
-
+    if (connection) {
+        if (playerQueue.length > 0) {
             playerQueue.shift();
         }
-        else
-        {
-            actualPlayedSoundName = "aucune musique n'est jouée";
+
+        if (playerQueue.length > 0) {
+            playUrlAudio(connection, playerQueue[0].youtubeUrl).then(() => updateInfoMessage());
+        } else {
             updateInfoMessage();
         }
-    }
-    else
-    {
-        actualPlayedSoundName = "aucune musique n'est jouée";
+    } else {
         playerQueue = [];
+        updateInfoMessage();
     }
 });
 
@@ -212,8 +179,8 @@ class Cmd_join extends Command {
         let connection = getVoiceConnection(message.member.voice.channel.guild.id);
         lastGuildId = message.member.voice.channel.guild.id;
 
-        if (!connection)
-        {// Le bot n'est pas encore connecter a un channel audio
+        if (!connection) {
+            // Bot is not connected to a audio channel
             connection = joinVoiceChannel({
                 channelId: message.member.voice.channel.id,
                 guildId: message.member.guild.id,
@@ -226,14 +193,12 @@ class Cmd_join extends Command {
                     messagePinned = infoMsg;
                 })
                 .catch(err => console.log(err));
+
+            connection.subscribe(player);
         }
 
-        const audioPlayer = createAudioPlayer();
         const audioGaspard = createAudioResource('./presentation.ogg');
-
-        connection.subscribe(audioPlayer);
-
-        audioPlayer.play(audioGaspard);
+        player.play(audioGaspard);
     }
 
 }
@@ -247,33 +212,23 @@ class Cmd_play extends Command {
     static action(message, client) {
         let connection = getVoiceConnection(message.member.voice.channel.guild.id);
 
-        if (!connection)
-        {// Le bot n'est pas encore connecter a un channel audio
+        if (!connection) {
+            // Bot is not connected to a audio channel
             return message.channel.send("Je ne suis pas connecter petit chef, fais la commande !join !");
         }
 
         let args = message.content.split(' ');
 
-        if (args.length < 2)
-        {
+        if (args.length < 2) {
             return message.channel.send("Manque le lien petit chef !");
         }
 
         args.shift();
         let arg = args.join(" ");
 
-        if (Utils.isSpotifyUrl(arg))
-        {
-            getPreview(arg).then(data => {
-                arg = data['title'] + ' ' + data['artist'];
-                console.log( 'spotify: ' + arg );
-                pushSound(connection, arg);
-            }).catch(err => console.log(err));
-        }
-        else
-        {
-            pushSound(connection, arg);
-        }
+        let song = new Song();
+        song.fetch(arg, message.author.username).then(() => pushSound(connection, song) )
+            .catch((err) => console.log(err));
     }
 
 }
@@ -287,8 +242,8 @@ class Cmd_leave extends Command {
     static action(message, client) {
         let connection = getVoiceConnection(message.member.voice.channel.guild.id);
 
-        if (!connection)
-        {// Le bot n'est pas encore connecter a un channel audio
+        if (!connection) {
+            // Bot is not connected to a audio channel
             return message.channel.send("Je suis pas dans un channel petit chef !");
         }
 
@@ -310,8 +265,8 @@ class Cmd_stop extends Command {
     static action(message, client) {
         let connection = getVoiceConnection(message.member.voice.channel.guild.id);
 
-        if (!connection)
-        {// Le bot n'est pas encore connecter a un channel audio
+        if (!connection) {
+            // Bot is not connected to a audio channel
             return message.channel.send("Je suis pas dans un channel petit chef !");
         }
 
@@ -330,8 +285,8 @@ class Cmd_skip extends Command {
     static action(message, client) {
         let connection = getVoiceConnection(message.member.voice.channel.guild.id);
 
-        if (!connection)
-        {// Le bot n'est pas encore connecter a un channel audio
+        if (!connection) {
+            // Bot is not connected to a audio channel
             return message.channel.send("Je suis pas dans un channel petit chef !");
         }
 
@@ -349,8 +304,8 @@ class Cmd_pause extends Command {
     static action(message, client) {
         let connection = getVoiceConnection(message.member.voice.channel.guild.id);
 
-        if (!connection)
-        {// Le bot n'est pas encore connecter a un channel audio
+        if (!connection) {
+            // Bot is not connected to a audio channel
             return message.channel.send("Je suis pas dans un channel petit chef !");
         }
 
@@ -368,8 +323,8 @@ class Cmd_unpause extends Command {
     static action(message, client) {
         let connection = getVoiceConnection(message.member.voice.channel.guild.id);
 
-        if (!connection)
-        {// Le bot n'est pas encore connecter a un channel audio
+        if (!connection) {
+            // Bot is not connected to a audio channel
             return message.channel.send("Je suis pas dans un channel petit chef !");
         }
 
@@ -387,8 +342,8 @@ class Cmd_shuffle extends Command {
     static action(message, client) {
         let connection = getVoiceConnection(message.member.voice.channel.guild.id);
 
-        if (!connection)
-        {// Le bot n'est pas encore connecter a un channel audio
+        if (!connection) {
+            // Bot is not connected to a audio channel
             return message.channel.send("Je suis pas dans un channel petit chef !");
         }
 

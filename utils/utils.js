@@ -9,18 +9,6 @@ function isSpotifyUrl(string) {
     return regex.test(string);
 }
 
-function isValidHttpUrl(string) {
-    let url;
-
-    try {
-        url = new URL(string);
-    } catch (_) {
-        return false;  
-    }
-
-    return url.protocol === "http:" || url.protocol === "https:";
-}
-
 function shuffleArray(array) {
     let currentIndex = array.length;
     let randomIndex;
@@ -32,6 +20,10 @@ function shuffleArray(array) {
     randomIndex = Math.floor(Math.random() * currentIndex);
     currentIndex--;
 
+    if (randomIndex == 0) { // Avoid shuffle on the first element
+        continue;
+    }
+
     // And swap it with the current element.
     [array[currentIndex], array[randomIndex]] = [
         array[randomIndex], array[currentIndex]];
@@ -40,7 +32,6 @@ function shuffleArray(array) {
 
 module.exports = {
     isYoutubeUrl : isYoutubeUrl,
-    isValidHttpUrl : isValidHttpUrl,
     shuffleArray : shuffleArray,
     isSpotifyUrl : isSpotifyUrl
 }

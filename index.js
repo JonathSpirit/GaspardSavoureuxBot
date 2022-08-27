@@ -20,8 +20,6 @@ const {
 } = require("discord-speech-recognition");
 
 const Commands = require("./commands/commands");
-const Playlist = require("./playlist/playlist");
-const InfoCenter = require("./infoCenter/infoCenter");
 
 const bot = new Client({
     intents: [
