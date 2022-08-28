@@ -26,41 +26,29 @@ let player = createAudioPlayer();
 let lastGuildId = null;
 let messagePinned = null;
 
-function playAudio(connection, path) {
-    try
-    {
-        const audio = createAudioResource(path);
+player.on('error', error => {
+    console.error(`Error: ${error.message}`);
+});
 
-        player.play(audio);
-
-        return true;
-
-    } catch(err) {
-        console.log(err);
-        return false;
-    }
+async function playAudio(connection, path) {
+    const audio = createAudioResource(path);
+    player.play(audio);
 }
 
 async function playUrlAudio(connection, youtubeUrl) {
-    try
+    let valid = true;
+
+    var stream = await ytdl(youtubeUrl, {
+        highWaterMark: 1 << 25,
+        opusEncoded: true,
+        filter: 'audioonly',
+    }).on('error', () => valid=false);
+    
+
+    if (valid)
     {
-        let valid = true;
-
-        var stream = await ytdl(youtubeUrl, {
-            highWaterMark: 1 << 25,
-            opusEncoded: true,
-            filter: 'audioonly',
-        })
-        .on("error", () => valid=false);
-
-        if (valid)
-        {
-            const resource = createAudioResource(stream, { inputType: StreamType.Opus });
-            player.play(resource);
-        }
-
-    } catch(err) {
-        return Promise.reject();
+        const resource = createAudioResource(stream, { inputType: StreamType.Opus });
+        player.play(resource);
     }
 }
 
