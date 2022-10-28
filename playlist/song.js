@@ -49,6 +49,8 @@ class Song {
                 throw Error("can't fetch from spotify url: "+url);
             }
             else if ( Utils.isYoutubeUrl(url) ) {
+                url = Utils.extractYoutubeUrl(url);
+
                 const searchResults = await ytsr(url, {limit:1});
 
                 if (searchResults.items) {
@@ -56,7 +58,7 @@ class Song {
                         this.title = searchResults.items[0].title;
                         this.artist = searchResults.items[0].author.name;
                         this.length = searchResults.items[0].duration;
-                        this.youtubeUrl = searchResults.items[0].url;
+                        this.youtubeUrl = url;
                         this.valid = true;
                         return;
                     }

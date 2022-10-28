@@ -222,7 +222,7 @@ class Cmd_play extends Command {
 
         let song = new Song();
         song.fetch(arg, message.author.username).then(() => pushSound(connection, song) )
-            .catch((err) => console.log(err));
+            .catch((err) => message.channel.send("Petit souci chef, je ne peux pas mettre cette musique !"));
     }
 
 }
