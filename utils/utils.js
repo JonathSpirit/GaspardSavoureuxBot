@@ -4,6 +4,11 @@ function isYoutubeUrl(string) {
     return regex.test(string);
 }
 
+function isYoutubePlaylistUrl(string) {
+    let regex = new RegExp('(?:https:\\/\\/)*?www\\.youtube\\.com\\/playlist\\?list=[a-zA-Z0-9\\-_]*', 'g');
+    return regex.test(string);
+}
+
 function extractYoutubeUrl(string) {
     let regex = new RegExp('(www\\.youtube\\.com\\/watch\\?v=[a-zA-Z0-9\\-_]*)', 'g');
     results = regex.exec(string);
@@ -41,6 +46,7 @@ function shuffleArray(array) {
 
 module.exports = {
     isYoutubeUrl : isYoutubeUrl,
+    isYoutubePlaylistUrl : isYoutubePlaylistUrl,
     extractYoutubeUrl : extractYoutubeUrl,
     shuffleArray : shuffleArray,
     isSpotifyUrl : isSpotifyUrl

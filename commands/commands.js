@@ -20,6 +20,9 @@ const {Song} = require("../playlist/song");
 
 const InfoCenter = require("../infoCenter/infoCenter");
 const Utils = require("../utils/utils");
+const { isYoutubePlaylistUrl, isYoutubeUrl } = require("../utils/utils");
+
+const YouTube = require("youtube-sr").default;
 
 let playerQueue = [];
 let player = createAudioPlayer();
@@ -83,15 +86,21 @@ function updateInfoMessage() {
         .catch(err => console.log(err));
 }
 
-async function pushSound(connection, song) {
+async function pushSound(connection, song, doUpdateInfoMessage=true) {
     if (song.valid) {
         console.log("pushing: "+song.title);
         playerQueue.push(song);
 
         if (player.state.status == 'idle') {
-            await playUrlAudio(connection, song.youtubeUrl).then(() => updateInfoMessage());
+            await playUrlAudio(connection, song.youtubeUrl).then(() => {
+                if (doUpdateInfoMessage) {
+                    updateInfoMessage();
+                }
+            });
         } else {
-            await updateInfoMessage();
+            if (doUpdateInfoMessage) {
+                await updateInfoMessage();
+            }
         }
     } else {
         console.log("not a valid song !");
@@ -220,9 +229,28 @@ class Cmd_play extends Command {
         args.shift();
         let arg = args.join(" ");
 
-        let song = new Song();
-        song.fetch(arg, message.author.username).then(() => pushSound(connection, song) )
-            .catch((err) => message.channel.send("Petit souci chef, je ne peux pas mettre cette musique !"));
+        if (isYoutubePlaylistUrl(arg)) {
+            YouTube.getPlaylist(arg)
+            .then((res) => {
+                if (res.videos) {
+                    if (res.videos.length > 0) {
+                        message.channel.send("Playlist : "+res.title+"\nnombre de vidéo/musique : "+res.videos.length);
+
+                        for (let i=0; i<res.videos.length; i++) {
+                            let song = new Song();
+                            song.fetch(res.videos[i].url, message.author.username).then(() => pushSound(connection, song, false) )
+                                .catch((err) => message.channel.send("Petit souci chef, je ne peux pas mettre la musique "+i+" !"));
+                        }
+                        setTimeout(function() { updateInfoMessage(); }, 6000);
+                    }
+                }
+            })
+            .catch(err => message.channel.send("Petit souci chef, je ne peux pas mettre cette playlist !\n"+err));
+        } else {
+            let song = new Song();
+            song.fetch(arg, message.author.username).then(() => pushSound(connection, song) )
+                .catch((err) => message.channel.send("Petit souci chef, je ne peux pas mettre cette musique !\n"+err));
+        }
     }
 
 }
