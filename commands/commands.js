@@ -4,132 +4,18 @@ const ytdl = require("discord-ytdl-core");
 
 const {
     joinVoiceChannel,
-    getVoiceConnection,
-    createAudioPlayer,
-    createAudioResource,
-    StreamType,
-    AudioPlayerStatus
+    getVoiceConnection
 } = require('@discordjs/voice');
 
-const {
-    MessageEditOptions,
-    EmbedBuilder
-} = require('discord.js');
-
 const {Song} = require("../playlist/song");
+const {GuildPlayer} = require("../playlist/player");
 
 const InfoCenter = require("../infoCenter/infoCenter");
 const Utils = require("../utils/utils");
-const { isYoutubePlaylistUrl, isYoutubeUrl } = require("../utils/utils");
 
 const YouTube = require("youtube-sr").default;
 
-let playerQueue = [];
-let player = createAudioPlayer();
-let lastGuildId = null;
-let messagePinned = null;
-
-player.on('error', error => {
-    console.error(`Error: ${error.message}`);
-});
-
-async function playAudio(connection, path) {
-    const audio = createAudioResource(path);
-    player.play(audio);
-}
-
-async function playUrlAudio(connection, youtubeUrl) {
-    let valid = true;
-
-    var stream = await ytdl(youtubeUrl, {
-        highWaterMark: 1 << 25,
-        opusEncoded: true,
-        filter: 'audioonly',
-    }).on('error', () => valid=false);
-    
-
-    if (valid)
-    {
-        const resource = createAudioResource(stream, { inputType: StreamType.Opus });
-        player.play(resource);
-    }
-}
-
-function updateInfoMessage() {
-    let dataEmbed = new EmbedBuilder()
-        .setColor('#0099ff')
-        .setTitle('Liste des musiques');
-    
-    if (playerQueue.length == 0) {
-        dataEmbed.addFields({name: "aucune musique est jouée !", value: "!play <URL> ou <MOT CLES>"});
-    } else {
-        playerQueue.every((song, index) => {
-            if (index == 0) {
-                dataEmbed.addFields({name: "musique actuel, [par "+song.initiator+"] :",
-                    value: '['+song.title+']('+song.youtubeUrl+')' + ' - ' + song.artist + ' - (' + song.length + ')'});
-            }
-            else if (index > 6) {
-                dataEmbed.addFields({name: "encore "+(playerQueue.length-index)+" musiques en attente ...",
-                    value: 'patience petit chef !'});
-                return false;
-            } else {
-                dataEmbed.addFields({name: "musique suivante "+index+", [par "+song.initiator+"] :",
-                    value: '['+song.title+']('+song.youtubeUrl+')' + ' - ' + song.artist + ' - (' + song.length + ')'});
-            }
-            return true;
-        });
-    }
-
-    const dataEmbedArray = [dataEmbed];
-    messagePinned.edit({embeds: dataEmbedArray})
-        .then()
-        .catch(err => console.log(err));
-}
-
-async function pushSound(connection, song, doUpdateInfoMessage=true) {
-    if (song.valid) {
-        console.log("pushing: "+song.title);
-        playerQueue.push(song);
-
-        if (player.state.status == 'idle') {
-            await playUrlAudio(connection, song.youtubeUrl).then(() => {
-                if (doUpdateInfoMessage) {
-                    updateInfoMessage();
-                }
-            });
-        } else {
-            if (doUpdateInfoMessage) {
-                await updateInfoMessage();
-            }
-        }
-    } else {
-        console.log("not a valid song !");
-    }
-}
-
-player.on(AudioPlayerStatus.Playing, () => {
-	console.log('The audio player has started playing!');
-});
-
-player.on(AudioPlayerStatus.Idle, () => {
-	console.log('The audio player has started idle!');
-    let connection = getVoiceConnection(lastGuildId);
-
-    if (connection) {
-        if (playerQueue.length > 0) {
-            playerQueue.shift();
-        }
-
-        if (playerQueue.length > 0) {
-            playUrlAudio(connection, playerQueue[0].youtubeUrl).then(() => updateInfoMessage());
-        } else {
-            updateInfoMessage();
-        }
-    } else {
-        playerQueue = [];
-        updateInfoMessage();
-    }
-});
+let guildPlayers = new Map();
 
 class Command {
 
@@ -169,7 +55,6 @@ class Cmd_help extends Command {
         !stop pour enlever toutes les musiques\n\
         !skip pour skip la musique actuelle");
     }
-
 }
 
 class Cmd_join extends Command {
@@ -179,31 +64,28 @@ class Cmd_join extends Command {
     }
 
     static action(message, client) {
-        let connection = getVoiceConnection(message.member.voice.channel.guild.id);
-        lastGuildId = message.member.voice.channel.guild.id;
-
-        if (!connection) {
-            // Bot is not connected to a audio channel
-            connection = joinVoiceChannel({
-                channelId: message.member.voice.channel.id,
-                guildId: message.member.guild.id,
-                adapterCreator: message.member.guild.voiceAdapterCreator,
-                selfDeaf: false,
-            });
-
+        if ( guildPlayers.has(message.member.voice.channel.guild.id) ) {
+            guildPlayers.get(message.member.voice.channel.guild.id).playAudioFile("./presentation.ogg");
+        } else {
             InfoCenter.InfoCenter.getInfoMessage(message.channel)
                 .then((infoMsg) => {
-                    messagePinned = infoMsg;
+
+                    // Bot is not connected to a audio channel
+                    let connection = joinVoiceChannel({
+                        channelId: message.member.voice.channel.id,
+                        guildId: message.member.guild.id,
+                        adapterCreator: message.member.guild.voiceAdapterCreator,
+                        selfDeaf: false,
+                    });
+
+                    console.log("joining : ", message.member.voice.channel.guild.id);
+
+                    guildPlayers.set(message.member.voice.channel.guild.id, new GuildPlayer(connection, infoMsg));
+                    guildPlayers.get(message.member.voice.channel.guild.id).playAudioFile("./presentation.ogg");
                 })
                 .catch(err => console.log(err));
-
-            connection.subscribe(player);
         }
-
-        const audioGaspard = createAudioResource('./presentation.ogg');
-        player.play(audioGaspard);
     }
-
 }
 
 class Cmd_play extends Command {
@@ -213,9 +95,7 @@ class Cmd_play extends Command {
     }
 
     static action(message, client) {
-        let connection = getVoiceConnection(message.member.voice.channel.guild.id);
-
-        if (!connection) {
+        if ( !guildPlayers.has(message.member.voice.channel.guild.id) ) {
             // Bot is not connected to a audio channel
             return message.channel.send("Je ne suis pas connecter petit chef, fais la commande !join !");
         }
@@ -229,7 +109,9 @@ class Cmd_play extends Command {
         args.shift();
         let arg = args.join(" ");
 
-        if (isYoutubePlaylistUrl(arg)) {
+        let guildPlayer = guildPlayers.get(message.member.voice.channel.guild.id);
+
+        if (Utils.isYoutubePlaylistUrl(arg)) {
             YouTube.getPlaylist(arg)
             .then((res) => {
                 if (res.videos) {
@@ -238,17 +120,17 @@ class Cmd_play extends Command {
 
                         for (let i=0; i<res.videos.length; i++) {
                             let song = new Song();
-                            song.fetch(res.videos[i].url, message.author.username).then(() => pushSound(connection, song, false) )
+                            song.fetch(res.videos[i].url, message.author.username).then(() => guildPlayer.pushSound(song, false) )
                                 .catch((err) => message.channel.send("Petit souci chef, je ne peux pas mettre la musique "+i+" !"));
                         }
-                        setTimeout(function() { updateInfoMessage(); }, 6000);
+                        setTimeout(function() { guildPlayer.updateInfoMessage(); }, 6000);
                     }
                 }
             })
             .catch(err => message.channel.send("Petit souci chef, je ne peux pas mettre cette playlist !\n"+err));
         } else {
             let song = new Song();
-            song.fetch(arg, message.author.username).then(() => pushSound(connection, song) )
+            song.fetch(arg, message.author.username).then(() => guildPlayer.pushSound(song) )
                 .catch((err) => message.channel.send("Petit souci chef, je ne peux pas mettre cette musique !\n"+err));
         }
     }
@@ -262,18 +144,17 @@ class Cmd_leave extends Command {
     }
 
     static action(message, client) {
-        let connection = getVoiceConnection(message.member.voice.channel.guild.id);
-
-        if (!connection) {
+        if ( !guildPlayers.has(message.member.voice.channel.guild.id) ) {
             // Bot is not connected to a audio channel
             return message.channel.send("Je suis pas dans un channel petit chef !");
         }
 
-        playerQueue = [];
-        player.stop(true);
+        let guildPlayer = guildPlayers.get(message.member.voice.channel.guild.id);
+        guildPlayer.disconnect();
 
-        connection.disconnect();
-        connection.destroy();
+        guildPlayers.delete(message.member.voice.channel.guild.id);
+
+        console.log("leaving here : ", message.member.voice.channel.guild.id);
     }
 
 }
@@ -285,15 +166,13 @@ class Cmd_stop extends Command {
     }
 
     static action(message, client) {
-        let connection = getVoiceConnection(message.member.voice.channel.guild.id);
-
-        if (!connection) {
+        if ( !guildPlayers.has(message.member.voice.channel.guild.id) ) {
             // Bot is not connected to a audio channel
             return message.channel.send("Je suis pas dans un channel petit chef !");
         }
 
-        playerQueue = [];
-        player.stop(true);
+        let guildPlayer = guildPlayers.get(message.member.voice.channel.guild.id);
+        guildPlayer.stop();
     }
 
 }
@@ -305,14 +184,13 @@ class Cmd_skip extends Command {
     }
 
     static action(message, client) {
-        let connection = getVoiceConnection(message.member.voice.channel.guild.id);
-
-        if (!connection) {
+        if ( !guildPlayers.has(message.member.voice.channel.guild.id) ) {
             // Bot is not connected to a audio channel
             return message.channel.send("Je suis pas dans un channel petit chef !");
         }
 
-        player.stop(true);
+        let guildPlayer = guildPlayers.get(message.member.voice.channel.guild.id);
+        guildPlayer.skip();
     }
 
 }
@@ -324,14 +202,13 @@ class Cmd_pause extends Command {
     }
 
     static action(message, client) {
-        let connection = getVoiceConnection(message.member.voice.channel.guild.id);
-
-        if (!connection) {
+        if ( !guildPlayers.has(message.member.voice.channel.guild.id) ) {
             // Bot is not connected to a audio channel
             return message.channel.send("Je suis pas dans un channel petit chef !");
         }
 
-        player.pause();
+        let guildPlayer = guildPlayers.get(message.member.voice.channel.guild.id);
+        guildPlayer.pause();
     }
 
 }
@@ -343,14 +220,13 @@ class Cmd_unpause extends Command {
     }
 
     static action(message, client) {
-        let connection = getVoiceConnection(message.member.voice.channel.guild.id);
-
-        if (!connection) {
+        if ( !guildPlayers.has(message.member.voice.channel.guild.id) ) {
             // Bot is not connected to a audio channel
             return message.channel.send("Je suis pas dans un channel petit chef !");
         }
 
-        player.unpause();
+        let guildPlayer = guildPlayers.get(message.member.voice.channel.guild.id);
+        guildPlayer.pause(false);
     }
 
 }
@@ -362,15 +238,13 @@ class Cmd_shuffle extends Command {
     }
 
     static action(message, client) {
-        let connection = getVoiceConnection(message.member.voice.channel.guild.id);
-
-        if (!connection) {
+        if ( !guildPlayers.has(message.member.voice.channel.guild.id) ) {
             // Bot is not connected to a audio channel
             return message.channel.send("Je suis pas dans un channel petit chef !");
         }
 
-        Utils.shuffleArray(playerQueue);
-        updateInfoMessage();
+        let guildPlayer = guildPlayers.get(message.member.voice.channel.guild.id);
+        guildPlayer.shuffle();
     }
 
 }
@@ -386,5 +260,5 @@ module.exports = {
     Cmd_pause : Cmd_pause,
     Cmd_unpause : Cmd_unpause,
     Cmd_shuffle : Cmd_shuffle,
-    playAudio : playAudio
+    guildPlayers : guildPlayers
 }

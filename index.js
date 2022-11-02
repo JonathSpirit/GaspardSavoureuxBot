@@ -12,10 +12,6 @@ const {
 } = require('discord.js');
 
 const {
-    getVoiceConnection
-} = require('@discordjs/voice');
-
-const {
     addSpeechEvent
 } = require("discord-speech-recognition");
 
@@ -57,15 +53,21 @@ bot.on("speech", (msg) => {
                 msg.content = "!play "+sentence.slice(24);
                 Commands.Cmd_play.parse(msg, bot);
             }
-            else if ( sentence === 'gaspard skip' )
+            else if ( sentence === 'gaspard skip' || sentence === 'gaspard suivant' )
             {
                 msg.content = "!skip"
                 Commands.Cmd_skip.parse(msg, bot);
             }
+            else if ( sentence === 'gaspard stop' )
+            {
+                msg.content = "!stop"
+                Commands.Cmd_stop.parse(msg, bot);
+            }
             else if (sentence === "gaspard présente-toi")
             {
-                let connection = getVoiceConnection(msg.member.voice.channel.guild.id);
-                Commands.playAudio(connection, "./presentation.ogg");
+                if (Commands.guildPlayers.has(msg.member.voice.channel.guild.id)) {
+                    Commands.guildPlayers.get(msg.member.voice.channel.guild.id).playAudioFile("./presentation.ogg");
+                }
             }
         }
         catch(err)
@@ -86,7 +88,27 @@ bot.on("ready", function () {
 
     //Activité
     bot.user.setActivity("la qualité d'un restaurant", {type: 'WATCHING'});
-})
+});
+
+bot.on('voiceStateUpdate', (oldState, newState) => {
+    // if nobody left the channel in question, return.
+    if (oldState.channelId !== oldState.guild.members.me.voice.channelId || newState.channel) {
+        return;
+    }
+    
+    // otherwise, check how many people are in the channel now
+    if (oldState.channel.members.size - 1 === 0) {
+        setTimeout(() => {
+            if (oldState.channel.members.size - 1 === 0) {
+                if (Commands.guildPlayers.has(oldState.guild.members.me.voice.channel.guild.id)) {
+                    Commands.guildPlayers.get(oldState.guild.members.me.voice.channel.guild.id).disconnect();
+                    Commands.guildPlayers.delete(oldState.guild.members.me.voice.channel.guild.id);
+                    console.log("timeout here : ", oldState.guild.members.me.voice.channel.guild.id);
+                }
+            }
+        }, 10000);
+    }
+});
 
 bot.on("messageCreate", function (msg) {
     if (msg.author.bot)
@@ -114,7 +136,7 @@ bot.on("messageCreate", function (msg) {
     {
         msg.delete();
     }
-})
+});
 
 
 var fs = require('fs');
