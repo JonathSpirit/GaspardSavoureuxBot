@@ -52,7 +52,7 @@ bot.on("speech", (msg) => {
                 
                 Commands.Cmd_play.parse(msg, bot);
             }
-            else if ( sentence.startsWith('gaspard joue') )
+            else if ( sentence.startsWith('gaspard joue') || sentence.startsWith('gaspard lance') || sentence.startsWith('gaspard met') )
             {
                 msg.content = "!play "+sentence.slice(24);
                 Commands.Cmd_play.parse(msg, bot);
