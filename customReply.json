@@ -1,0 +1,14 @@
+{
+    "customReply": [
+        {
+            "text": "prépare-toi à mourir",
+            "url": "https://www.youtube.com/watch?v=Iooyl5WxPqA",
+            "isLink": true
+        },
+        {
+            "text": "gaspard présente-toi",
+            "url": "./presentation.ogg",
+            "isLink": false
+        }
+    ]
+}

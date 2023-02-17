@@ -17,6 +17,31 @@ const {
 
 const Commands = require("./commands/commands");
 
+//Load custom reply
+const fs = require('fs');
+
+class CustomReply
+{
+    url = "";
+    isLink = false;
+
+    constructor(url, isLink)
+    {
+        this.url = url;
+        this.isLink = isLink;
+    }
+}
+
+let customReply = new Map();
+{
+    let rawdata = fs.readFileSync("./customReply.json");
+    let customReplyJson = JSON.parse(rawdata);
+    customReplyJson["customReply"].forEach(element => {
+        customReply.set(element.text, new CustomReply(element.url, element.isLink));
+    });
+    console.log(customReply);
+}
+
 const bot = new Client({
     intents: [
         GatewayIntentBits.GuildVoiceStates,
@@ -34,6 +59,19 @@ bot.on("speech", (msg) => {
         try
         {
             const sentence = msg.content.toLowerCase();
+
+            if (customReply.has(sentence))
+            {
+                let reply = customReply.get(sentence);
+                if (reply.isLink) {
+                    msg.content = "!play "+reply.url;
+                    Commands.Cmd_play.parse(msg, bot);
+                } else {
+                    if (Commands.guildPlayers.has(msg.member.voice.channel.guild.id)) {
+                        Commands.guildPlayers.get(msg.member.voice.channel.guild.id).playAudioFile(reply.url);
+                    }
+                }
+            }
 
             if (sentence === "gaspard joue ma musique")
             {
@@ -62,12 +100,6 @@ bot.on("speech", (msg) => {
             {
                 msg.content = "!stop"
                 Commands.Cmd_stop.parse(msg, bot);
-            }
-            else if (sentence === "gaspard présente-toi")
-            {
-                if (Commands.guildPlayers.has(msg.member.voice.channel.guild.id)) {
-                    Commands.guildPlayers.get(msg.member.voice.channel.guild.id).playAudioFile("./presentation.ogg");
-                }
             }
         }
         catch(err)
@@ -138,8 +170,6 @@ bot.on("messageCreate", function (msg) {
     }
 });
 
-
-var fs = require('fs');
 var apiKey = fs.readFileSync("apiKey.txt", 'utf8');
 
 bot.login( apiKey.replace(/[^a-zA-Z0-9.]/g, "") );
