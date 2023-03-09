@@ -4,7 +4,8 @@ const {
     createAudioPlayer,
     createAudioResource,
     StreamType,
-    AudioPlayerStatus
+    AudioPlayerStatus,
+    VoiceConnectionStatus
 } = require('@discordjs/voice');
 
 const {
@@ -12,7 +13,8 @@ const {
     EmbedBuilder
 } = require('discord.js');
 
-const ytdl = require("discord-ytdl-core");
+const ytdl = require("ytdl-core");
+const prism = require('prism-media');
 
 const Utils = require("../utils/utils");
 
@@ -28,6 +30,26 @@ class GuildPlayer {
         this.player = createAudioPlayer();
         this.infoMessagePinned = infoMessage;
         this.voiceConnection = connection;
+
+        //BEGIN
+        //This is a workaround temporary fix for this "BIG" issue :
+        //https://github.com/discordjs/discord.js/issues/9185
+        this.voiceConnection.on('stateChange', async (oldState, newState) => {
+            const oldNetworking = Reflect.get(oldState, 'networking');
+            const newNetworking = Reflect.get(newState, 'networking');
+
+            const networkStateChangeHandler = (oldNetworkState, newNetworkState) => {
+                const newUdp = Reflect.get(newNetworkState, 'udp');
+                clearInterval(newUdp?.keepAliveInterval);
+            }
+
+            oldNetworking?.off('stateChange', networkStateChangeHandler);
+            newNetworking?.on('stateChange', networkStateChangeHandler);
+            /*if (oldState.status === VoiceConnectionStatus.Ready && newState.status === VoiceConnectionStatus.Connecting) {
+                this.voiceConnection.configureNetworking();
+            }*/
+        });
+        //END
 
         this.voiceConnection.subscribe(this.player);
 
@@ -91,16 +113,69 @@ class GuildPlayer {
     
     async playAudioYoutubeUrl(youtubeUrl) {
         var stream = await ytdl(youtubeUrl, {
+            quality: "highestaudio",
+            filter: "audioonly",
             highWaterMark: 1 << 25,
-            opusEncoded: true,
-            filter: 'audioonly',
-        }).on('error', (err) => console.error("ytdl stream error : ", err));
+        });
+
+        const FFmpegArgs = [
+            '-analyzeduration',
+            '0',
+            '-loglevel',
+            '0',
+            '-f',
+            's16le',
+            '-ar',
+            '48000',
+            '-ac',
+            '2',
+        ];
+
+        const transcoder = new prism.FFmpeg({
+            args: FFmpegArgs,
+            shell: false,
+        });
+
+        const opus = new prism.opus.Encoder({
+            rate: 48000,
+            channels: 2,
+            frameSize: 960
+        });
+
+        const outputStream = stream.pipe(transcoder).pipe(opus);
+
+        stream.on('error', (err) => {
+            console.error("ytdl stream error : ", err);
+            opus.destroy();
+            stream.destroy();
+            transcoder.destroy();
+        });
+
+        opus.on('error', (err) => {
+            console.error("opus stream error : ", err);
+            opus.destroy();
+            stream.destroy();
+            transcoder.destroy();
+        });
+
+        outputStream.on('error', (err) => {
+            console.error("stream error : ", err);
+            opus.destroy();
+            stream.destroy();
+            transcoder.destroy();
+        });
+
+        outputStream.on('close', () => {
+            opus.destroy();
+            stream.destroy();
+            transcoder.destroy();
+        });
         
-        if (stream.readable) {
-            const resource = createAudioResource(stream, { inputType: StreamType.Opus });
+        if (outputStream.readable) {
+            const resource = createAudioResource(outputStream, { inputType: StreamType.Opus });
             this.player.play(resource);
         }
-        return stream.readable;
+        return outputStream.readable;
     }
 
     async pushSound(song, doUpdateInfoMessage=true) {
@@ -113,7 +188,7 @@ class GuildPlayer {
                     if (doUpdateInfoMessage) {
                         this.updateInfoMessage();
                     }
-                });
+                }).catch((err) => console.log(err));
             } else {
                 if (doUpdateInfoMessage) {
                     await this.updateInfoMessage();

@@ -1,7 +1,5 @@
 //https://www.npmjs.com/package/discord-ytdl-core
 
-const ytdl = require("discord-ytdl-core");
-
 const {
     joinVoiceChannel,
     getVoiceConnection
