@@ -3,23 +3,31 @@
 //https://discord.com/oauth2/authorize?client_id=746087602192646174&scope=bot&permissions=3148800
 //https://www.youtube.com/watch?v=errnVwm_3mI
 //https://discord.js.org/#/
+//https://www.npmjs.com/package/discord-ytdl-core
 
 const {
     Client,
-    Intents,
     Partials,
-    GatewayIntentBits
+    GatewayIntentBits,
+    Collection,
+    Events,
+    REST,
+    Routes
 } = require('discord.js');
 
 const {
     addSpeechEvent
 } = require("discord-speech-recognition");
 
-const Commands = require("./commands/commands");
+const {
+    clientId,
+    token
+} = require('./config.json');
 
-//Load custom reply
-const fs = require('fs');
+const fs = require('node:fs');
+const path = require('node:path');
 
+//Loading custom voice replies
 class CustomReply
 {
     url = "";
@@ -42,6 +50,7 @@ let customReply = new Map();
     console.log(customReply);
 }
 
+//Creating the bot
 const bot = new Client({
     intents: [
         GatewayIntentBits.GuildVoiceStates,
@@ -51,55 +60,135 @@ const bot = new Client({
     ], partials: [Partials.Channel]
 });
 
+//Load slash commands
+//Directly taken from : https://discordjs.guide/creating-your-bot/command-handling.html#loading-command-files
+bot.commands = new Collection();
+const commands = [];
+const foldersPath = path.join(__dirname, 'commands');
+const commandFilePaths = fs.readdirSync(foldersPath);
+
+for (const commandFileName of commandFilePaths) {
+    const commandFilePath = path.join(foldersPath, commandFileName);
+
+    if (fs.lstatSync(commandFilePath).isDirectory()) {
+        const commandFiles = fs.readdirSync(commandFilePath).filter(file => file.endsWith('.js'));
+        for (const file of commandFiles) {
+            const filePath = path.join(commandFilePath, file);
+            const command = require(filePath);
+            // Set a new item in the Collection with the key as the command name and the value as the exported module
+            if ('data' in command && 'execute' in command) {
+                bot.commands.set(command.data.name, command);
+                commands.push(command.data.toJSON());
+            } else {
+                console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+            }
+        }
+    } else if (commandFileName.endsWith('.js')) {
+        const command = require(commandFilePath);
+        // Set a new item in the Collection with the key as the command name and the value as the exported module
+        if ('data' in command && 'execute' in command) {
+            bot.commands.set(command.data.name, command);
+            commands.push(command.data.toJSON());
+        } else {
+            console.log(`[WARNING] The command at ${commandFilePath} is missing a required "data" or "execute" property.`);
+        }
+    } else {
+        console.log(`[WARNING] Ignoring file ${commandFileName}.`);
+    }
+}
+
+//Construct and prepare an instance of the REST module
+const rest = new REST().setToken(token);
+
+//Deploying global commands
+(async () => {
+	try {
+		console.log(`Started refreshing ${commands.length} application (/) commands.`);
+
+		// The put method is used to fully refresh all commands in the guild with the current set
+		const data = await rest.put(
+			Routes.applicationCommands(clientId),
+			{ body: commands },
+		);
+
+		console.log(`Successfully reloaded ${data.length} application (/) commands.`);
+	} catch (error) {
+		// And of course, make sure you catch and log any errors!
+		console.error(error);
+	}
+})();
+
+//Prepare a map containing all Players by guild id
+bot.guildPlayers = new Map();
+
+//Add speech event for voice recognition
 addSpeechEvent(bot, { lang: "fr-FR" });
  
+bot.on(Events.InteractionCreate, async interaction => {
+	if (!interaction.isChatInputCommand()) {
+        return;
+    }
+
+	const command = interaction.client.commands.get(interaction.commandName);
+
+	if (!command) {
+		console.error(`No command matching ${interaction.commandName} was found.`);
+		return;
+	}
+
+	try {
+		await command.execute(interaction);
+	} catch (error) {
+		console.error(error);
+		if (interaction.replied || interaction.deferred) {
+			await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
+		} else {
+			await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+		}
+	}
+});
+
 bot.on("speech", (msg) => {
     if (msg.content)
     {
         try
         {
+            const guildId = msg.channel.guildId;
             const sentence = msg.content.toLowerCase();
+
+            if (!bot.guildPlayers.has(guildId)) {
+                return;
+            }
 
             if (customReply.has(sentence))
             {
                 let reply = customReply.get(sentence);
                 if (reply.isLink) {
-                    msg.content = "!play "+reply.url;
-                    Commands.Cmd_play.parse(msg, bot);
+                    bot.guildPlayers.get(guildId).parseSoundString(reply.url, msg.author.username, null);
                 } else {
-                    if (Commands.guildPlayers.has(msg.member.voice.channel.guild.id)) {
-                        Commands.guildPlayers.get(msg.member.voice.channel.guild.id).playAudioFile(reply.url);
-                    }
+                    bot.guildPlayers.get(guildId).playAudioFile(reply.url);
                 }
             }
 
-            if (sentence === "gaspard joue ma musique")
+            if ( sentence.startsWith('gaspard joue') )
             {
-                if (msg.author.username != "JSpirit")
-                {
-                    msg.content = "!play https://www.youtube.com/watch?v=Bo0cpgAtzig";
-                }
-                else
-                {
-                    msg.content = "!play MINE DIAMONDS | miNECRAFT PARODY OF TAKE ON ME";
-                }
-                
-                Commands.Cmd_play.parse(msg, bot);
+                bot.guildPlayers.get(guildId).parseSoundString(sentence.slice('gaspard joue'.length), msg.author.username, null);
             }
-            else if ( sentence.startsWith('gaspard joue') || sentence.startsWith('gaspard lance') || sentence.startsWith('gaspard met') )
+            else if ( sentence.startsWith('gaspard lance') )
             {
-                msg.content = "!play "+sentence.slice(24);
-                Commands.Cmd_play.parse(msg, bot);
+                bot.guildPlayers.get(guildId).parseSoundString(sentence.slice('gaspard lance'.length), msg.author.username, null);
+            }
+            else if ( sentence.startsWith('gaspard met') )
+            {
+                bot.guildPlayers.get(guildId).parseSoundString(sentence.slice('gaspard met'.length), msg.author.username, null);
             }
             else if ( sentence === 'gaspard skip' || sentence === 'gaspard suivant' )
             {
-                msg.content = "!skip"
-                Commands.Cmd_skip.parse(msg, bot);
+                bot.guildPlayers.get(guildId).skip();
             }
             else if ( sentence === 'gaspard stop' )
             {
-                msg.content = "!stop"
-                Commands.Cmd_stop.parse(msg, bot);
+                bot.guildPlayers.get(guildId).stop();
             }
         }
         catch(err)
@@ -109,7 +198,6 @@ bot.on("speech", (msg) => {
     }
 });
 
-//Toutes les actions à faire quand le bot se connecte
 bot.on("ready", function () {
     console.log(`Logged in as ${bot.user.tag} !`);
 
@@ -118,7 +206,7 @@ bot.on("ready", function () {
     .then(user => console.log("New avatar set!"))
     .catch(reason => console.log("Can't set avatar now !"));
 
-    //Activité
+    //Activity
     bot.user.setActivity("la qualité d'un restaurant", {type: 'WATCHING'});
 });
 
@@ -132,9 +220,9 @@ bot.on('voiceStateUpdate', (oldState, newState) => {
     if (oldState.channel.members.size - 1 === 0) {
         setTimeout(() => {
             if (oldState.channel.members.size - 1 === 0) {
-                if (Commands.guildPlayers.has(oldState.guild.members.me.voice.channel.guild.id)) {
-                    Commands.guildPlayers.get(oldState.guild.members.me.voice.channel.guild.id).disconnect();
-                    Commands.guildPlayers.delete(oldState.guild.members.me.voice.channel.guild.id);
+                if (bot.guildPlayers.has(oldState.guild.members.me.voice.channel.guild.id)) {
+                    bot.guildPlayers.get(oldState.guild.members.me.voice.channel.guild.id).disconnect();
+                    bot.guildPlayers.delete(oldState.guild.members.me.voice.channel.guild.id);
                     console.log("timeout here : ", oldState.guild.members.me.voice.channel.guild.id);
                 }
             }
@@ -142,34 +230,4 @@ bot.on('voiceStateUpdate', (oldState, newState) => {
     }
 });
 
-bot.on("messageCreate", function (msg) {
-    if (msg.author.bot)
-    {
-        return;
-    }
-
-    if (msg.content == "!gaspard")
-    {
-        msg.content = "!play MINE DIAMONDS | miNECRAFT PARODY OF TAKE ON ME";
-    }
-
-    let commandUsed =
-    Commands.Cmd_help.parse(msg, bot) ||
-    Commands.Cmd_join.parse(msg, bot) ||
-    Commands.Cmd_leave.parse(msg, bot) ||
-    Commands.Cmd_play.parse(msg, bot) ||
-    Commands.Cmd_stop.parse(msg, bot) ||
-    Commands.Cmd_pause.parse(msg, bot) ||
-    Commands.Cmd_unpause.parse(msg, bot) ||
-    Commands.Cmd_shuffle.parse(msg, bot) ||
-    Commands.Cmd_skip.parse(msg, bot);
-    
-    if (commandUsed == true)
-    {
-        msg.delete();
-    }
-});
-
-var apiKey = fs.readFileSync("apiKey.txt", 'utf8');
-
-bot.login( apiKey.replace(/[^a-zA-Z0-9.]/g, "") );
+bot.login(token);

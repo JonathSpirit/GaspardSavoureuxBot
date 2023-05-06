@@ -16,7 +16,10 @@ const {
 const ytdl = require("ytdl-core");
 const prism = require('prism-media');
 
+const {Song} = require("../playlist/song");
 const Utils = require("../utils/utils");
+
+const YouTube = require("youtube-sr").default;
 
 class GuildPlayer {
 
@@ -34,7 +37,7 @@ class GuildPlayer {
         //BEGIN
         //This is a workaround temporary fix for this "BIG" issue :
         //https://github.com/discordjs/discord.js/issues/9185
-        this.voiceConnection.on('stateChange', async (oldState, newState) => {
+        /*this.voiceConnection.on('stateChange', async (oldState, newState) => {
             const oldNetworking = Reflect.get(oldState, 'networking');
             const newNetworking = Reflect.get(newState, 'networking');
 
@@ -45,10 +48,7 @@ class GuildPlayer {
 
             oldNetworking?.off('stateChange', networkStateChangeHandler);
             newNetworking?.on('stateChange', networkStateChangeHandler);
-            /*if (oldState.status === VoiceConnectionStatus.Ready && newState.status === VoiceConnectionStatus.Connecting) {
-                this.voiceConnection.configureNetworking();
-            }*/
-        });
+        });*/
         //END
 
         this.voiceConnection.subscribe(this.player);
@@ -196,6 +196,50 @@ class GuildPlayer {
             }
         } else {
             console.log("not a valid song !");
+        }
+    }
+
+    async parseSoundString(soundString, username, interaction) {
+        if (Utils.isYoutubePlaylistUrl(soundString)) {
+            YouTube.getPlaylist(soundString)
+            .then((res) => {
+                if (res.videos) {
+                    if (res.videos.length > 0) {
+                        if (interaction != null) {
+                            interaction.reply("Playlist : "+res.title+"\nnombre de vidéo/musique : "+res.videos.length);
+                        }
+
+                        for (let i=0; i<res.videos.length; i++) {
+                            let song = new Song();
+                            song.fetch(res.videos[i].url, username).then(() => this.pushSound(song, false) )
+                                .catch((err) => {
+                                    if (interaction != null) {
+                                        interaction.channel.send("Petit souci chef, je ne peux pas mettre la musique "+i+" !");
+                                    }
+                                });
+                        }
+                        setTimeout(function() { this.updateInfoMessage(); }, 6000);
+                    }
+                }
+            })
+            .catch(err => {
+                if (interaction != null) {
+                    interaction.reply("Petit souci chef, je ne peux pas mettre cette playlist !\n"+err);
+                }
+            });
+        } else {
+            let song = new Song();
+            song.fetch(soundString, username).then(() => {
+                this.pushSound(song);
+                if (interaction != null) {
+                    interaction.reply("Ajout de \""+song.title+"\" !");
+                }
+            })
+            .catch((err) => {
+                if (interaction != null) {
+                    interaction.reply("Petit souci chef, je ne peux pas mettre cette musique !\n"+err);
+                }
+            });
         }
     }
 
