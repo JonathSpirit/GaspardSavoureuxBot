@@ -218,7 +218,7 @@ class GuildPlayer {
                                     }
                                 });
                         }
-                        setTimeout(function() { this.updateInfoMessage(); }, 6000);
+                        setTimeout(() => { this.updateInfoMessage(); }, 6000);
                     }
                 }
             })
