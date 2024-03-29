@@ -4,8 +4,8 @@ const {
 
 module.exports = {
     data: new SlashCommandBuilder()
-		.setName('play')
-		.setDescription('Joue une musique avec un lien/mots clés')
+		.setName('playafter')
+		.setDescription('Joue une musique avec un lien/mots clés juste après')
         .addStringOption(option =>
             option.setName('input')
                 .setDescription('Un lien ou des mots clés')
@@ -31,7 +31,7 @@ module.exports = {
         await guildPlayer.parseSoundString(inputArg, interactionAuthor, (err) => {
             interaction.followUp(err);
         }, (song) => {
-            guildPlayer.pushSound(song);
+            guildPlayer.pushSoundAfter(song, interactionAuthor);
         })
         .then((info) => {
             if (info instanceof Array){

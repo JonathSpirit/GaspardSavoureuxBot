@@ -160,35 +160,45 @@ bot.on("speech", (msg) => {
                 return;
             }
 
+            let guildPlayer = bot.guildPlayers.get(guildId);
+
             if (customReply.has(sentence))
             {
                 let reply = customReply.get(sentence);
                 if (reply.isLink) {
-                    bot.guildPlayers.get(guildId).parseSoundString(reply.url, msg.author.username, null);
+                    guildPlayer.parseSoundString(reply.url, msg.author.username, null, (song) => {
+                        guildPlayer.pushSound(song);
+                    });
                 } else {
-                    bot.guildPlayers.get(guildId).playAudioFile(reply.url);
+                    guildPlayer.playAudioFile(reply.url);
                 }
             }
 
             if ( sentence.startsWith('gaspard joue') )
             {
-                bot.guildPlayers.get(guildId).parseSoundString(sentence.slice('gaspard joue'.length), msg.author.username, null);
+                guildPlayer.parseSoundString(sentence.slice('gaspard joue'.length), msg.author.username, null, (song) => {
+                    guildPlayer.pushSound(song);
+                });
             }
             else if ( sentence.startsWith('gaspard lance') )
             {
-                bot.guildPlayers.get(guildId).parseSoundString(sentence.slice('gaspard lance'.length), msg.author.username, null);
+                guildPlayer.parseSoundString(sentence.slice('gaspard lance'.length), msg.author.username, null, (song) => {
+                    guildPlayer.pushSound(song);
+                });
             }
             else if ( sentence.startsWith('gaspard met') )
             {
-                bot.guildPlayers.get(guildId).parseSoundString(sentence.slice('gaspard met'.length), msg.author.username, null);
+                guildPlayer.parseSoundString(sentence.slice('gaspard met'.length), msg.author.username, null, (song) => {
+                    guildPlayer.pushSound(song);
+                });
             }
             else if ( sentence === 'gaspard skip' || sentence === 'gaspard suivant' )
             {
-                bot.guildPlayers.get(guildId).skip();
+                guildPlayer.skip();
             }
             else if ( sentence === 'gaspard stop' )
             {
-                bot.guildPlayers.get(guildId).stop();
+                guildPlayer.stop();
             }
         }
         catch(err)

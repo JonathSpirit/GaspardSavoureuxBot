@@ -179,68 +179,95 @@ class GuildPlayer {
     }
 
     async pushSound(song, doUpdateInfoMessage=true) {
-        if (song.valid) {
-            console.log("pushing: "+song.title);
-            this.playerQueue.push(song);
-    
-            if (this.player.state.status == 'idle') {
-                await this.playAudioYoutubeUrl(song.youtubeUrl).then(() => {
-                    if (doUpdateInfoMessage) {
-                        this.updateInfoMessage();
-                    }
-                }).catch((err) => console.log(err));
-            } else {
-                if (doUpdateInfoMessage) {
-                    await this.updateInfoMessage();
-                }
-            }
-        } else {
+        if (!song.valid) {
             console.log("not a valid song !");
+            return;
+        }
+
+        console.log("pushing: "+song.title);
+        this.playerQueue.push(song);
+
+        if (this.player.state.status == 'idle') {
+            await this.playAudioYoutubeUrl(song.youtubeUrl).then(() => {
+                if (doUpdateInfoMessage) {
+                    this.updateInfoMessage();
+                }
+            }).catch((err) => console.log(err));
+        } else {
+            if (doUpdateInfoMessage) {
+                await this.updateInfoMessage();
+            }
+        }
+    }
+    async pushSoundAfter(song, username, doUpdateInfoMessage=true) {
+        if (!song.valid) {
+            console.log("not a valid song !");
+            return;
+        }
+
+        if (this.playerQueue.length <= 1) {
+            this.pushSound(song, doUpdateInfoMessage);
+            return;
+        }
+
+        console.log("pushing after: "+song.title+" username: "+username);
+        
+        let songPushed = false;
+        for (let i=0; i<this.playerQueue.length; i++) {
+            if (this.playerQueue[i].initiator === username) {
+                continue;
+            }
+            if (this.playerQueue[i+1] && this.playerQueue[i+1].initiator === username) {
+                continue;
+            }
+            this.playerQueue.splice(i+1, 0, song);
+            songPushed = true;
+            break;
+        }
+        if (!songPushed) {
+            this.playerQueue.push(song);
+        }
+
+        if (this.player.state.status == 'idle') {
+            await this.playAudioYoutubeUrl(song.youtubeUrl).then(() => {
+                if (doUpdateInfoMessage) {
+                    this.updateInfoMessage();
+                }
+            }).catch((err) => console.log(err));
+        } else {
+            if (doUpdateInfoMessage) {
+                await this.updateInfoMessage();
+            }
         }
     }
 
-    async parseSoundString(soundString, username, interaction) {
-        if (Utils.isYoutubePlaylistUrl(soundString)) {
-            YouTube.getPlaylist(soundString)
-            .then((res) => {
-                if (res.videos) {
-                    if (res.videos.length > 0) {
-                        if (interaction != null) {
-                            interaction.reply("Playlist : "+res.title+"\nnombre de vidéo/musique : "+res.videos.length);
-                        }
-
-                        for (let i=0; i<res.videos.length; i++) {
-                            let song = new Song();
-                            song.fetch(res.videos[i].url, username).then(() => this.pushSound(song, false) )
-                                .catch((err) => {
-                                    if (interaction != null) {
-                                        interaction.channel.send("Petit souci chef, je ne peux pas mettre la musique "+i+" !");
-                                    }
-                                });
-                        }
-                        setTimeout(() => { this.updateInfoMessage(); }, 6000);
-                    }
-                }
-            })
-            .catch(err => {
-                if (interaction != null) {
-                    interaction.reply("Petit souci chef, je ne peux pas mettre cette playlist !\n"+err);
-                }
-            });
-        } else {
+    async parseSoundString(soundString, username, lambdaOnError, lambdaOnNewSong) {
+        if (!Utils.isYoutubePlaylistUrl(soundString)) {
             let song = new Song();
-            song.fetch(soundString, username).then(() => {
-                this.pushSound(song);
-                if (interaction != null) {
-                    interaction.reply("Ajout de \""+song.title+"\" !");
-                }
-            })
-            .catch((err) => {
-                if (interaction != null) {
-                    interaction.reply("Petit souci chef, je ne peux pas mettre cette musique !\n"+err);
-                }
-            });
+            await song.fetch(soundString, username).then(() => lambdaOnNewSong(song))
+            return Promise.resolve(song.title);
         }
+
+        let playlist = await YouTube.getPlaylist(soundString, {limit: 100});
+        if (playlist && playlist.videos) {
+            if (playlist.videos.length > 0) {
+                for (let i=0; i<playlist.videos.length; i++) {
+                    let song = new Song();
+                    song.fetch(playlist.videos[i].url, username)
+                        .then(() => lambdaOnNewSong(song))
+                        .catch((err) => {
+                            if (lambdaOnError) {
+                                lambdaOnError("Petit souci chef, je ne peux pas mettre la musique "+i+" !");
+                            }
+                            console.log(i+" "+err);
+                        });
+                }
+                setTimeout(() => { this.updateInfoMessage(); }, 6000);
+                return Promise.resolve([playlist.title, playlist.videos.length]);
+            }
+        }
+
+        return Promise.reject("Can't parse this string !");
     }
 
     async updateInfoMessage() {
