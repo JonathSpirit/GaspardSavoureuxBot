@@ -13,7 +13,7 @@ const {
     EmbedBuilder
 } = require('discord.js');
 
-const ytdl = require("ytdl-core");
+const ytdl = require("@distube/ytdl-core");
 const prism = require('prism-media');
 
 const {Song} = require("../playlist/song");
