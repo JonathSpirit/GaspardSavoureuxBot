@@ -32,11 +32,13 @@ class CustomReply
 {
     url = "";
     isLink = false;
+    isWord = false;
 
-    constructor(url, isLink)
+    constructor(url, isLink, isWord)
     {
         this.url = url;
         this.isLink = isLink;
+        this.isWord = isWord == null ? false : isWord;
     }
 }
 
@@ -45,7 +47,7 @@ let customReply = new Map();
     let rawdata = fs.readFileSync("./customReply.json");
     let customReplyJson = JSON.parse(rawdata);
     customReplyJson["customReply"].forEach(element => {
-        customReply.set(element.text, new CustomReply(element.url, element.isLink));
+        customReply.set(element.text, new CustomReply(element.url, element.isLink, element.isWord));
     });
     console.log(customReply);
 }
@@ -173,6 +175,19 @@ bot.on("speech", (msg) => {
                     guildPlayer.playAudioFile(reply.url);
                 }
             }
+
+            //Searching for words
+            customReply.forEach((value, key) => {
+                if (value.isWord && sentence.includes(key)) {
+                    if (value.isLink) {
+                        guildPlayer.parseSoundString(value.url, msg.author.username, null, (song) => {
+                            guildPlayer.pushSound(song);
+                        });
+                    } else {
+                        guildPlayer.playAudioFile(value.url);
+                    }
+                }
+            });
 
             if ( sentence.startsWith('gaspard joue') )
             {
