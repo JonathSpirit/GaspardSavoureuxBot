@@ -40,6 +40,15 @@ class CustomReply
         this.isLink = isLink;
         this.isWord = isWord == null ? false : isWord;
     }
+
+    getLink()
+    {
+        if (Array.isArray(this.url))
+        {
+            return this.url[Math.floor(Math.random()*this.url.length)];
+        }
+        return this.url;
+    }
 }
 
 let customReply = new Map();
@@ -168,11 +177,11 @@ bot.on("speech", (msg) => {
             {
                 let reply = customReply.get(sentence);
                 if (reply.isLink) {
-                    guildPlayer.parseSoundString(reply.url, msg.author.username, null, (song) => {
+                    guildPlayer.parseSoundString(reply.getLink(), msg.author.username, null, (song) => {
                         guildPlayer.pushSound(song);
                     });
                 } else {
-                    guildPlayer.playAudioFile(reply.url);
+                    guildPlayer.playAudioFile(reply.getLink());
                 }
             }
 
@@ -180,11 +189,11 @@ bot.on("speech", (msg) => {
             customReply.forEach((value, key) => {
                 if (value.isWord && sentence.includes(key)) {
                     if (value.isLink) {
-                        guildPlayer.parseSoundString(value.url, msg.author.username, null, (song) => {
+                        guildPlayer.parseSoundString(value.getLink(), msg.author.username, null, (song) => {
                             guildPlayer.pushSound(song);
                         });
                     } else {
-                        guildPlayer.playAudioFile(value.url);
+                        guildPlayer.playAudioFile(value.getLink());
                     }
                 }
             });
