@@ -13,6 +13,9 @@ const {
     EmbedBuilder
 } = require('discord.js');
 
+const fs = require('fs');
+const {PassThrough} = require('stream');
+
 const ytdl = require("@distube/ytdl-core");
 const prism = require('prism-media');
 
@@ -112,6 +115,57 @@ class GuildPlayer {
     }
     
     async playAudioYoutubeUrl(youtubeUrl) {
+
+        var ytbID = Utils.extractYoutubeID(youtubeUrl);
+        var cachePath = "./cache/"+ytbID+".cache";
+
+        if (!fs.existsSync("./cache"))
+        {
+            fs.mkdirSync("./cache", { recursive: true });
+        }
+        else if (fs.existsSync(cachePath))
+        {
+            console.log("cache file exists ! file: "+cachePath);
+
+            const fileStream = fs.createReadStream(cachePath, {flags: 'r', autoClose: true});
+
+            const FFmpegArgs = [
+                '-analyzeduration',
+                '0',
+                '-loglevel',
+                '0',
+                '-f',
+                's16le',
+                '-ar',
+                '48000',
+                '-ac',
+                '2',
+            ];
+    
+            const transcoder = new prism.FFmpeg({
+                args: FFmpegArgs,
+                shell: false,
+            });
+    
+            const opus = new prism.opus.Encoder({
+                rate: 48000,
+                channels: 2,
+                frameSize: 960
+            });
+
+            const outputStream = fileStream.pipe(transcoder).pipe(opus);
+
+            if (outputStream.readable) {
+                const resource = createAudioResource(outputStream, { inputType: StreamType.Opus });
+                this.player.play(resource);
+            }
+            return outputStream.readable;
+        }
+
+        console.log("cache file not exists, getting from youtube ! file: "+cachePath);
+
+        const fileStream = fs.createWriteStream(cachePath, {flags: 'w', autoClose: true});
+
         var stream = await ytdl(youtubeUrl, {
             quality: "highestaudio",
             filter: "audioonly",
@@ -142,20 +196,31 @@ class GuildPlayer {
             frameSize: 960
         });
 
-        const outputStream = stream.pipe(transcoder).pipe(opus);
+        // Create a PassThrough stream
+        const passThrough = new PassThrough();
+
+        const outputStream = passThrough.pipe(transcoder).pipe(opus);
+        const outputFileStream = passThrough.pipe(fileStream);
+
+        stream.pipe(passThrough);
+
+        outputFileStream.on('error', (err) => {
+            console.error("file stream error : ", err);
+            fileStream.destroy();
+            fs.rmSync(cachePath);
+        });
+        outputFileStream.on('close', () => {
+            console.log("file stream closed");
+            fileStream.destroy();
+        });
 
         stream.on('error', (err) => {
             console.error("ytdl stream error : ", err);
             opus.destroy();
             stream.destroy();
             transcoder.destroy();
-        });
-
-        opus.on('error', (err) => {
-            console.error("opus stream error : ", err);
-            opus.destroy();
-            stream.destroy();
-            transcoder.destroy();
+            fileStream.destroy();
+            fs.rmSync(cachePath);
         });
 
         outputStream.on('error', (err) => {
@@ -163,9 +228,11 @@ class GuildPlayer {
             opus.destroy();
             stream.destroy();
             transcoder.destroy();
+            fileStream.destroy();
+            fs.rmSync(cachePath);
         });
-
         outputStream.on('close', () => {
+            console.log("stream closed");
             opus.destroy();
             stream.destroy();
             transcoder.destroy();
