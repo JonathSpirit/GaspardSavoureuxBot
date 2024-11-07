@@ -155,12 +155,12 @@ class GuildPlayer {
 
             const outputStream = fileStream.pipe(transcoder).pipe(opus);
 
-            outputFileStream.on('error', (err) => {
+            outputStream.on('error', (err) => {
                 console.error("file stream error : ", err);
                 fileStream.destroy();
                 fs.rmSync(cachePath);
             });
-            outputFileStream.on('close', () => {
+            outputStream.on('close', () => {
                 console.log("file stream closed");
                 fileStream.destroy();
             });
