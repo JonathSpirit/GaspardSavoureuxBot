@@ -155,6 +155,16 @@ class GuildPlayer {
 
             const outputStream = fileStream.pipe(transcoder).pipe(opus);
 
+            outputFileStream.on('error', (err) => {
+                console.error("file stream error : ", err);
+                fileStream.destroy();
+                fs.rmSync(cachePath);
+            });
+            outputFileStream.on('close', () => {
+                console.log("file stream closed");
+                fileStream.destroy();
+            });
+
             if (outputStream.readable) {
                 const resource = createAudioResource(outputStream, { inputType: StreamType.Opus });
                 this.player.play(resource);
@@ -236,6 +246,14 @@ class GuildPlayer {
             opus.destroy();
             stream.destroy();
             transcoder.destroy();
+            if (outputFileStream.writable) {
+                outputFileStream.destroy();
+                fs.rmSync(cachePath);
+            }
+            else
+            {
+                outputFileStream.destroy();
+            }
         });
         
         if (outputStream.readable) {
