@@ -14,7 +14,7 @@ class Playlist {
 
     buildPlaylistPath()
     {
-        return "./data/" + String(this.playlistData) + "_list.txt";
+        return "./data/" + String(this.discordClientID) + "_list.txt";
     }
 
     exist()
@@ -34,7 +34,7 @@ class Playlist {
     }
 
     save() {
-        if (this.exist())
+        if (!this.exist())
         {
             if (!this.create())
             {
@@ -45,15 +45,15 @@ class Playlist {
         const fileStream = fs.createWriteStream(this.buildPlaylistPath());
 
         this.playlistData.forEach(name => {
-            fileStream.write(name);
+            fileStream.write(name + "\n");
         });
 
         fileStream.close();
         return true;
     }
 
-    load() {
-        if (this.exist())
+    async load() {
+        if (!this.exist())
         {
             return false;
         }
@@ -67,7 +67,10 @@ class Playlist {
         });
 
         for await (const line of rl) {
-            console.log(`Line from file: ${line}`);
+            if (line.length < 1)
+            {
+                continue;
+            } 
             this.playlistData.push(line);
         }
 
