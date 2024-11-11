@@ -13,6 +13,10 @@ module.exports = {
             subcommand
                 .setName('play')
                 .setDescription('Joue une musique aléatoire dans ta playlist')
+                .addIntegerOption(option => 
+                    option.setName('quantity')
+                        .setDescription('Nombre de musique à jouer (1 par défaut)')
+                        .setRequired(false))
             )
         .addSubcommand(subcommand =>
             subcommand
@@ -78,25 +82,39 @@ module.exports = {
         }
 
         if (subCmd === "play") {
-            const inputArg = playlist.playlistData[Math.floor(Math.random() * playlist.playlistData.length)];
+            const quantity = interaction.options.getInteger("quantity") || 1;
+            if (quantity < 1) {
+                return await interaction.reply({content: "Nombre de musique invalide petit chef !", ephemeral: true });
+            }
 
             let guildPlayer = interaction.client.guildPlayers.get(guildId);
             const interactionAuthor = interaction.user.username;
     
             await interaction.deferReply();
-            await guildPlayer.parseSoundString(inputArg, interactionAuthor, (err) => {
-                interaction.followUp(err);
-            }, (song) => {
-                guildPlayer.pushSound(song);
-            })
-            .then((info) => {
-                if (info instanceof Array){
-                    interaction.editReply("Playlist : "+info[0]+"\nnombre de vidéo/musique : "+info[1]);
-                }else{
-                    interaction.editReply("Ajout de \""+info+"\" !");
-                }
-            })
-            .catch((err) => {interaction.editReply({ content: "Petit souci chef, je ne peux pas mettre cette musique !\n"+err, ephemeral: true })})
+
+            let randomUniqueIndex = [];
+            for (let i=0; i<quantity; i++) {
+                randomUniqueIndex.push( Math.floor(Math.random() * playlist.playlistData.length) );
+            }
+            randomUniqueIndex = [...new Set(randomUniqueIndex)];
+
+            for (let i=0; i<randomUniqueIndex.length; i++) {
+                const inputArg = playlist.playlistData[randomUniqueIndex[i]];
+
+                await guildPlayer.parseSoundString(inputArg, interactionAuthor, (err) => {
+                    interaction.followUp(err);
+                }, (song) => {
+                    guildPlayer.pushSound(song);
+                })
+                .then((info) => {
+                    if (info instanceof Array){
+                        interaction.followUp("Playlist : "+info[0]+"\nnombre de vidéo/musique : "+info[1]);
+                    }else{
+                        interaction.followUp("Ajout de \""+info+"\" !");
+                    }
+                })
+                .catch((err) => {interaction.followUp({ content: "Petit souci chef, je ne peux pas mettre cette musique !\n"+err, ephemeral: true })})
+            }
         }
         else if (subCmd === "set") {
             const file = interaction.options.getAttachment("file");
