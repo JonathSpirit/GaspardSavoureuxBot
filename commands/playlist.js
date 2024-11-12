@@ -240,13 +240,13 @@ module.exports = {
                 randomUniqueIndex[randomUniqueIndex.length-1] = randomUniqueIndex[randomUniqueIndex.length-1].sort(() => Math.random() - 0.5);
             });
             if (playlists.length < 1) {
-                return await interaction.reply({content: "Pas assez de playlist valide petit chef !", ephemeral: true });
+                return await interaction.editReply({content: "Pas assez de playlist valide petit chef !", ephemeral: true });
             }
 
             let guildPlayer = interaction.client.guildPlayers.get(guildId);
             const interactionAuthor = interaction.user.username;
 
-            await interaction.reply("Ajout de "+quantity+" musique(s) aléatoire(s) de "+playlists.length+" playlist(s) !");
+            await interaction.editReply("Ajout de "+quantity+" musique(s) aléatoire(s) de "+playlists.length+" playlist(s) !");
 
             for (let i=0; i<quantity; i++) {
                 const randomPlaylistIndex = Math.floor(Math.random() * playlists.length);
