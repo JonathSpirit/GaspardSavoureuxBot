@@ -102,7 +102,7 @@ module.exports = {
             let guildPlayer = interaction.client.guildPlayers.get(guildId);
             const interactionAuthor = interaction.user.username;
     
-            await interaction.deferReply();
+            await interaction.reply("Ajout de "+quantity+" musique(s) aléatoire(s) de la playlist de "+interactionAuthor+" !");
 
             let randomUniqueIndex = [];
             for (let i=0; i<playlist.playlistData.length; i++) {
@@ -112,6 +112,8 @@ module.exports = {
 
             for (let i=0; i<quantity; i++) {
                 if (randomUniqueIndex.length < 1) {
+                    console.log("Not enough songs in playlist to play !");
+                    interaction.editReply("Finalement, ajout de "+i+" musique(s) aléatoire(s) car pas assez de musique dans la playlist !");
                     break;
                 }
                 const randomIndex = randomUniqueIndex.pop();
@@ -123,11 +125,6 @@ module.exports = {
                     guildPlayer.pushSound(song);
                 })
                 .then((info) => {
-                    if (info instanceof Array){
-                        interaction.followUp("Playlist : "+info[0]+"\nnombre de vidéo/musique : "+info[1]);
-                    }else{
-                        interaction.followUp("Ajout de \""+info+"\" !");
-                    }
                 })
                 .catch((err) => {interaction.followUp({ content: "Petit souci chef, je ne peux pas mettre cette musique !\n"+err, ephemeral: true })})
             }
@@ -249,6 +246,8 @@ module.exports = {
             let guildPlayer = interaction.client.guildPlayers.get(guildId);
             const interactionAuthor = interaction.user.username;
 
+            await interaction.reply("Ajout de "+quantity+" musique(s) aléatoire(s) de "+playlists.length+" playlist(s) !");
+
             for (let i=0; i<quantity; i++) {
                 const randomPlaylistIndex = Math.floor(Math.random() * playlists.length);
                 const randomPlaylist = playlists[randomPlaylistIndex];
@@ -263,11 +262,6 @@ module.exports = {
                     guildPlayer.pushSound(song);
                 })
                 .then((info) => {
-                    if (info instanceof Array){
-                        interaction.followUp("Playlist : "+info[0]+"\nnombre de vidéo/musique : "+info[1]);
-                    }else{
-                        interaction.followUp("Ajout de \""+info+"\" !");
-                    }
                 })
                 .catch((err) => {interaction.followUp({ content: "Petit souci chef, je ne peux pas mettre cette musique !\n"+err, ephemeral: true })})
 
@@ -276,6 +270,7 @@ module.exports = {
                     randomUniqueIndex.splice(randomPlaylistIndex, 1);
                     if (playlists.length < 1) {
                         console.log("Not enough songs in playlist to play !");
+                        interaction.editReply("Finalement, ajout de "+i+" musique(s) aléatoire(s) car pas assez de musique dans les playlists !");
                         break;
                     }
                 }
