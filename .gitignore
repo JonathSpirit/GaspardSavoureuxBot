@@ -1,4 +1,5 @@
 *.code-workspace
 config.json
 node_modules/
+data/
 cache/

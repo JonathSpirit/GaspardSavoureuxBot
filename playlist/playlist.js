@@ -4,93 +4,82 @@ const readline = require('readline');
 
 class Playlist {
 
-    playlistName;
+    discordClientID;
     playlistData;
-    isValid;
 
-    constructor() {
+    constructor(discordClientID) {
         this.playlistData = [];
-        this.playlistName = "";
-        this.isValid = false;
+        this.discordClientID = discordClientID;
     }
 
-    create(name) {
-        this.playlistData = [];
-        this.isValid = false;
+    buildPlaylistPath()
+    {
+        return "./data/" + String(this.discordClientID) + "_list.txt";
+    }
 
-        if (typeof(name)!=='string')
+    exist()
+    {
+        return fs.existsSync(this.buildPlaylistPath());
+    }
+
+    create() {
+        if (this.exist())
         {
             return false;
         }
-        for (var i=0;i<name.length;i++)
+        if (!fs.existsSync("./data"))
         {
-            if( (name.charCodeAt(i) < 48) ||
-                (name.charCodeAt(i) >= 58 && name.charCodeAt(i) <= 64) ||
-                (name.charCodeAt(i) >= 91 && name.charCodeAt(i) <= 96) ||
-                (name.charCodeAt(i) > 122) )
-            {
-                return false;
-            }
+            fs.mkdirSync("./data", { recursive: true });
         }
 
-        this.playlistName = name;
-        this.isValid = true;
+        this.playlistData = [];
+        fs.writeFileSync(this.buildPlaylistPath(), "");
         return true;
     }
 
     save() {
-        if (!this.isValid)
+        if (!this.exist())
         {
-            return false;
-        }
-        
-        try {
-            let data = "";
-            this.playlistData.forEach(function(v) { data+=v + "\r\n"; });
-
-            fs.writeFileSync("./playlist_"+this.playlistName+".txt", data);
-
-            return true;
-        } catch (err) {
-            console.error(err)
-            return false;
-        }
-    }
-
-    load(name) {
-        this.playlistData = [];
-        this.isValid = false;
-
-        if (typeof(name)!=='string')
-        {
-            return false;
-        }
-        for (var i=0;i<name.length;i++)
-        {
-            if( (name.charCodeAt(i) < 48) ||
-                (name.charCodeAt(i) >= 58 && name.charCodeAt(i) <= 64) ||
-                (name.charCodeAt(i) >= 91 && name.charCodeAt(i) <= 96) ||
-                (name.charCodeAt(i) > 122) )
+            if (!this.create())
             {
                 return false;
             }
         }
 
-        this.playlistName = name;
+        const fileStream = fs.createWriteStream(this.buildPlaylistPath());
 
-        try {
-            this.playlistData = fs.readFileSync("./playlist_"+name+".txt", 'utf-8')
-                .split('\r\n')
-                .filter(Boolean);
+        this.playlistData.forEach(name => {
+            fileStream.write(name + "\n");
+        });
 
-            this.isValid = true;
+        fileStream.close();
+        return true;
+    }
 
-            return true;
-        } catch (err) {
-            this.playlistData = [];
-            console.error(err)
+    async load() {
+        if (!this.exist())
+        {
             return false;
         }
+
+        this.playlistData = [];
+        const fileStream = fs.createReadStream(this.buildPlaylistPath());
+
+        const rl = readline.createInterface({
+            input: fileStream,
+            crlfDelay: Infinity
+        });
+
+        for await (const line of rl) {
+            if (line.length < 1)
+            {
+                continue;
+            } 
+            this.playlistData.push(line);
+        }
+
+        fileStream.close();
+        return true;
     }
 }
 
