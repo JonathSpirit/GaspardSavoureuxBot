@@ -20,6 +20,15 @@ module.exports = {
             )
         .addSubcommand(subcommand =>
             subcommand
+                .setName('shuffle')
+                .setDescription("Joue une musique aléatoire d'une playlist aléatoire dans le channel")
+                .addIntegerOption(option =>
+                    option.setName('quantity')
+                        .setDescription('Nombre de musique à jouer (1 par défaut)')
+                        .setRequired(false))
+            )
+        .addSubcommand(subcommand =>
+            subcommand
                 .setName('set')
                 .setDescription('Set un fichier txt contenant des titres de musiques')
                 .addAttachmentOption(option => 
@@ -86,6 +95,9 @@ module.exports = {
             if (quantity < 1) {
                 return await interaction.reply({content: "Nombre de musique invalide petit chef !", ephemeral: true });
             }
+            if (playlist.playlistData.length < 1) {
+                return await interaction.reply({content: "Playlist vide petit chef !", ephemeral: true });
+            }
 
             let guildPlayer = interaction.client.guildPlayers.get(guildId);
             const interactionAuthor = interaction.user.username;
@@ -93,13 +105,17 @@ module.exports = {
             await interaction.deferReply();
 
             let randomUniqueIndex = [];
-            for (let i=0; i<quantity; i++) {
-                randomUniqueIndex.push( Math.floor(Math.random() * playlist.playlistData.length) );
+            for (let i=0; i<playlist.playlistData.length; i++) {
+                randomUniqueIndex.push(i);
             }
-            randomUniqueIndex = [...new Set(randomUniqueIndex)];
+            randomUniqueIndex = randomUniqueIndex.sort(() => Math.random() - 0.5);
 
-            for (let i=0; i<randomUniqueIndex.length; i++) {
-                const inputArg = playlist.playlistData[randomUniqueIndex[i]];
+            for (let i=0; i<quantity; i++) {
+                if (randomUniqueIndex.length < 1) {
+                    break;
+                }
+                const randomIndex = randomUniqueIndex.pop();
+                const inputArg = playlist.playlistData[randomIndex];
 
                 await guildPlayer.parseSoundString(inputArg, interactionAuthor, (err) => {
                     interaction.followUp(err);
@@ -185,6 +201,85 @@ module.exports = {
             }
 
             return await interaction.reply({content: "Musique retirée !", ephemeral: true });
+        }
+        else if (subCmd === "shuffle") {
+            const quantity = interaction.options.getInteger("quantity") || 1;
+            if (quantity < 1) {
+                return await interaction.reply({content: "Nombre de musique invalide petit chef !", ephemeral: true });
+            }
+
+            await interaction.deferReply();
+
+            const channel = await interaction.guild.channels.fetch(interaction.channelId, { cache: true, force: false }) ;
+            let randomUniqueIndex = [];
+            let playlists = [];
+            channel.members.forEach(member => {
+                if (member.user.bot) {
+                    return;
+                }
+
+                let newPlaylist;
+                if (playlist.discordClientID === member.user.id) {
+                    newPlaylist = playlist;
+                }
+                else
+                {
+                    newPlaylist = new Playlist(member.user.id);
+                    newPlaylist.load();
+                }
+
+                if (newPlaylist.playlistData.length < 1) {
+                    return;
+                }
+
+                console.log("Pushing playlist from "+member.user.id);
+                playlists.push(newPlaylist);
+                randomUniqueIndex.push(new Array());
+                //Fill randomUniqueIndex with 0 1 2 3 until the number max of playlist.playlistData.length
+                for (let i=0; i<newPlaylist.playlistData.length; i++) {
+                    randomUniqueIndex[randomUniqueIndex.length-1].push(i);
+                }
+                //Shuffle the array
+                randomUniqueIndex[randomUniqueIndex.length-1] = randomUniqueIndex[randomUniqueIndex.length-1].sort(() => Math.random() - 0.5);
+            });
+            if (playlists.length < 1) {
+                return await interaction.reply({content: "Pas assez de playlist valide petit chef !", ephemeral: true });
+            }
+
+            let guildPlayer = interaction.client.guildPlayers.get(guildId);
+            const interactionAuthor = interaction.user.username;
+
+            for (let i=0; i<quantity; i++) {
+                const randomPlaylistIndex = Math.floor(Math.random() * playlists.length);
+                const randomPlaylist = playlists[randomPlaylistIndex];
+                const randomIndex = randomUniqueIndex[randomPlaylistIndex].pop();
+
+                const inputArg = randomPlaylist.playlistData[randomIndex];
+
+                console.log("Pushing "+inputArg+" from "+randomPlaylist.discordClientID);
+                await guildPlayer.parseSoundString(inputArg, interactionAuthor, (err) => {
+                    interaction.followUp(err);
+                }, (song) => {
+                    guildPlayer.pushSound(song);
+                })
+                .then((info) => {
+                    if (info instanceof Array){
+                        interaction.followUp("Playlist : "+info[0]+"\nnombre de vidéo/musique : "+info[1]);
+                    }else{
+                        interaction.followUp("Ajout de \""+info+"\" !");
+                    }
+                })
+                .catch((err) => {interaction.followUp({ content: "Petit souci chef, je ne peux pas mettre cette musique !\n"+err, ephemeral: true })})
+
+                if (randomUniqueIndex[randomPlaylistIndex].length < 1) {
+                    playlists.splice(randomPlaylistIndex, 1);
+                    randomUniqueIndex.splice(randomPlaylistIndex, 1);
+                    if (playlists.length < 1) {
+                        console.log("Not enough songs in playlist to play !");
+                        break;
+                    }
+                }
+            }
         }
 	},
 }
