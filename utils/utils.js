@@ -18,6 +18,15 @@ function extractYoutubeUrl(string) {
     return null;
 }
 
+function extractYoutubeID(string) {
+    let regex = new RegExp('watch\\?v=([a-zA-Z0-9\\-_]*)', 'g');
+    results = regex.exec(string);
+    if (results !== null) {
+        return results[1];
+    }
+    return null;
+}
+
 function isSpotifyUrl(string) {
     let regex = new RegExp('(?:https:\\/\\/)?open\\.spotify\\.com\\/track\\/[a-zA-Z0-9]*(?:\\?si=[a-zA-Z0-9]*)?', 'g');
     return regex.test(string);
@@ -48,6 +57,7 @@ module.exports = {
     isYoutubeUrl : isYoutubeUrl,
     isYoutubePlaylistUrl : isYoutubePlaylistUrl,
     extractYoutubeUrl : extractYoutubeUrl,
+    extractYoutubeID : extractYoutubeID,
     shuffleArray : shuffleArray,
     isSpotifyUrl : isSpotifyUrl
 }
