@@ -27,6 +27,10 @@ class Playlist {
         {
             return false;
         }
+        if (!fs.existsSync("./data"))
+        {
+            fs.mkdirSync("./data", { recursive: true });
+        }
 
         this.playlistData = [];
         fs.writeFileSync(this.buildPlaylistPath(), "");
