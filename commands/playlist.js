@@ -230,6 +230,7 @@ module.exports = {
                     await newPlaylist.load();
                 }
 
+                console.log("Playlist "+member.user.id+" size : "+newPlaylist.playlistData.length);
                 if (newPlaylist.playlistData.length < 1) {
                     return;
                 }
