@@ -210,7 +210,8 @@ module.exports = {
             const channel = await interaction.guild.channels.fetch(interaction.channelId, { cache: true, force: false }) ;
             let randomUniqueIndex = [];
             let playlists = [];
-            for (let i=0; i<channel.members.length; i++) {
+            let memberArray = channel.members.array();
+            for (let i=0; i<memberArray.length; i++) {
                 const func = async member => {
                     console.log("Member : "+member.user.id);
 
@@ -246,7 +247,7 @@ module.exports = {
                     //Shuffle the array
                     randomUniqueIndex[randomUniqueIndex.length-1] = randomUniqueIndex[randomUniqueIndex.length-1].sort(() => Math.random() - 0.5);
                 };
-                await func(channel.members[i]);
+                await func(memberArray[i]);
             }
             if (playlists.length < 1) {
                 return await interaction.editReply({content: "Pas assez de playlist valide petit chef !", ephemeral: true });
