@@ -220,7 +220,7 @@ module.exports = {
 
                 if (member.user.bot) {
                     console.log("Member : "+member.user.id+" is a bot");
-                    return;
+                    continue;
                 }
 
                 let newPlaylist;
@@ -237,7 +237,7 @@ module.exports = {
 
                 console.log("Playlist "+member.user.id+" size : "+newPlaylist.playlistData.length);
                 if (newPlaylist.playlistData.length < 1) {
-                    return;
+                    continue;
                 }
 
                 console.log("Pushing playlist from "+member.user.id);
