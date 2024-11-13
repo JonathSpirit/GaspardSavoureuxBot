@@ -210,44 +210,49 @@ module.exports = {
             const channel = await interaction.guild.channels.fetch(interaction.channelId, { cache: true, force: false }) ;
             let randomUniqueIndex = [];
             let playlists = [];
-            let memberArray = channel.members.array();
+            let memberArray = [];
+            channel.members.forEach(member => {
+                if (member.user.bot) {
+                    console.log("Member : "+member.user.id+" is a bot");
+                    return;
+                }
+                memberArray.push(member);
+            });
+            
             for (let i=0; i<memberArray.length; i++) {
-                const func = async member => {
-                    console.log("Member : "+member.user.id);
+                const member = memberArray[i];
 
-                    if (member.user.bot) {
-                        console.log("Member : "+member.user.id+" is a bot");
-                        return;
-                    }
+                if (member.user.bot) {
+                    console.log("Member : "+member.user.id+" is a bot");
+                    return;
+                }
 
-                    let newPlaylist;
-                    if (playlist.discordClientID === member.user.id) {
-                        console.log("Member : "+member.user.id+" is same as transaction author");
-                        newPlaylist = playlist;
-                    }
-                    else
-                    {
-                        console.log("Member : "+member.user.id+" is another user");
-                        newPlaylist = new Playlist(member.user.id);
-                        await newPlaylist.load();
-                    }
+                let newPlaylist;
+                if (playlist.discordClientID === member.user.id) {
+                    console.log("Member : "+member.user.id+" is same as transaction author");
+                    newPlaylist = playlist;
+                }
+                else
+                {
+                    console.log("Member : "+member.user.id+" is another user");
+                    newPlaylist = new Playlist(member.user.id);
+                    await newPlaylist.load();
+                }
 
-                    console.log("Playlist "+member.user.id+" size : "+newPlaylist.playlistData.length);
-                    if (newPlaylist.playlistData.length < 1) {
-                        return;
-                    }
+                console.log("Playlist "+member.user.id+" size : "+newPlaylist.playlistData.length);
+                if (newPlaylist.playlistData.length < 1) {
+                    return;
+                }
 
-                    console.log("Pushing playlist from "+member.user.id);
-                    playlists.push(newPlaylist);
-                    randomUniqueIndex.push(new Array());
-                    //Fill randomUniqueIndex with 0 1 2 3 until the number max of playlist.playlistData.length
-                    for (let i=0; i<newPlaylist.playlistData.length; i++) {
-                        randomUniqueIndex[randomUniqueIndex.length-1].push(i);
-                    }
-                    //Shuffle the array
-                    randomUniqueIndex[randomUniqueIndex.length-1] = randomUniqueIndex[randomUniqueIndex.length-1].sort(() => Math.random() - 0.5);
-                };
-                await func(memberArray[i]);
+                console.log("Pushing playlist from "+member.user.id);
+                playlists.push(newPlaylist);
+                randomUniqueIndex.push(new Array());
+                //Fill randomUniqueIndex with 0 1 2 3 until the number max of playlist.playlistData.length
+                for (let i=0; i<newPlaylist.playlistData.length; i++) {
+                    randomUniqueIndex[randomUniqueIndex.length-1].push(i);
+                }
+                //Shuffle the array
+                randomUniqueIndex[randomUniqueIndex.length-1] = randomUniqueIndex[randomUniqueIndex.length-1].sort(() => Math.random() - 0.5);
             }
             if (playlists.length < 1) {
                 return await interaction.editReply({content: "Pas assez de playlist valide petit chef !", ephemeral: true });
