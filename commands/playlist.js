@@ -210,19 +210,24 @@ module.exports = {
             const channel = await interaction.guild.channels.fetch(interaction.channelId, { cache: true, force: false }) ;
             let randomUniqueIndex = [];
             let playlists = [];
-            channel.members.forEach(member => {
+            await channel.members.forEach(async member => {
+                console.log("Member : "+member.user.id);
+
                 if (member.user.bot) {
+                    console.log("Member : "+member.user.id+" is a bot");
                     return;
                 }
 
                 let newPlaylist;
                 if (playlist.discordClientID === member.user.id) {
+                    console.log("Member : "+member.user.id+" is same as transaction author");
                     newPlaylist = playlist;
                 }
                 else
                 {
+                    console.log("Member : "+member.user.id+" is another user");
                     newPlaylist = new Playlist(member.user.id);
-                    newPlaylist.load();
+                    await newPlaylist.load();
                 }
 
                 if (newPlaylist.playlistData.length < 1) {
