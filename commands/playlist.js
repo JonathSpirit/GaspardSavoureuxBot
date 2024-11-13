@@ -211,11 +211,7 @@ module.exports = {
             let randomUniqueIndex = [];
             let playlists = [];
             let memberArray = [];
-            channel.members.forEach(member => {
-                if (member.user.bot) {
-                    console.log("Member : "+member.user.id+" is a bot");
-                    return;
-                }
+            await channel.members.forEach(member => {
                 memberArray.push(member);
             });
             
