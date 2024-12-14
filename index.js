@@ -173,6 +173,11 @@ bot.on("speech", (msg) => {
 
             let guildPlayer = bot.guildPlayers.get(guildId);
 
+            if (guildPlayer.playerQueue.length > 0)
+            {
+                return;
+            }
+
             if (customReply.has(sentence))
             {
                 let reply = customReply.get(sentence);
