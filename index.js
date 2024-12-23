@@ -173,35 +173,33 @@ bot.on("speech", (msg) => {
 
             let guildPlayer = bot.guildPlayers.get(guildId);
 
-            if (guildPlayer.playerQueue.length > 0)
+            if (guildPlayer.playerQueue.length == 0)
             {
-                return;
-            }
-
-            if (customReply.has(sentence))
-            {
-                let reply = customReply.get(sentence);
-                if (reply.isLink) {
-                    guildPlayer.parseSoundString(reply.getLink(), msg.author.username, null, (song) => {
-                        guildPlayer.pushSound(song);
-                    });
-                } else {
-                    guildPlayer.playAudioFile(reply.getLink());
-                }
-            }
-
-            //Searching for words
-            customReply.forEach((value, key) => {
-                if (value.isWord && sentence.includes(key)) {
-                    if (value.isLink) {
-                        guildPlayer.parseSoundString(value.getLink(), msg.author.username, null, (song) => {
+                if (customReply.has(sentence))
+                {
+                    let reply = customReply.get(sentence);
+                    if (reply.isLink) {
+                        guildPlayer.parseSoundString(reply.getLink(), msg.author.username, null, (song) => {
                             guildPlayer.pushSound(song);
                         });
                     } else {
-                        guildPlayer.playAudioFile(value.getLink());
+                        guildPlayer.playAudioFile(reply.getLink());
                     }
                 }
-            });
+
+                //Searching for words
+                customReply.forEach((value, key) => {
+                    if (value.isWord && sentence.includes(key)) {
+                        if (value.isLink) {
+                            guildPlayer.parseSoundString(value.getLink(), msg.author.username, null, (song) => {
+                                guildPlayer.pushSound(song);
+                            });
+                        } else {
+                            guildPlayer.playAudioFile(value.getLink());
+                        }
+                    }
+                });
+            }
 
             if ( sentence.startsWith('gaspard joue') )
             {
@@ -221,11 +219,11 @@ bot.on("speech", (msg) => {
                     guildPlayer.pushSound(song);
                 });
             }
-            else if ( sentence === 'gaspard skip' || sentence === 'gaspard suivant' )
+            else if ( sentence === 'gaspard skip' || sentence === 'gaspard suivant' || sentence === 'gaspard next' )
             {
                 guildPlayer.skip();
             }
-            else if ( sentence === 'gaspard stop' )
+            else if ( sentence === 'gaspard stop' || sentence === 'gaspard arrête' )
             {
                 guildPlayer.stop();
             }
