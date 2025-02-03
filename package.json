@@ -11,7 +11,7 @@
   "dependencies": {
     "@discordjs/opus": "^0.10.0",
     "@discordjs/voice": "^0.18.0",
-    "@distube/ytdl-core": "^4.15.9",
+    "@distube/ytdl-core": "^4.16.0",
     "discord-speech-recognition": "^3.4.1",
     "discord.js": "^14.17.3",
     "ffmpeg-static": "^5.2.0",
