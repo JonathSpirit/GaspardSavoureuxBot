@@ -13,7 +13,7 @@
     "@discordjs/voice": "^0.18.0",
     "@distube/ytdl-core": "^4.16.8",
     "discord-speech-recognition": "^3.4.1",
-    "discord.js": "^14.18.0",
+    "discord.js": "^14.19.3",
     "ffmpeg-static": "^5.2.0",
     "isomorphic-unfetch": "^4.0.2",
     "prism-media": "^1.3.5",
