@@ -37,8 +37,8 @@ module.exports = {
                 .catch(err => console.log(err));
         }
 
-        await interaction.reply({content: "bien le bonjour!", fetchReply: true})
-            .then((message) => message.delete())
+        await interaction.reply({content: "bien le bonjour!", withResponse: true})
+            .then((response) => response.resource.message.delete())
             .catch(console.error);
 	},
 }

@@ -4,16 +4,17 @@ class InfoCenter {
 
         let pinnedMessages = null;
         
-        await textChannel.messages.fetchPinned()
-            .then( (messages) => { 
-                    pinnedMessages = messages.filter(msg => msg.author.bot);
+        await textChannel.messages.fetchPins()
+            .then( (messages) => {
+                    pinnedMessages = messages.items.filter(msg => msg.message.author.bot);
                 })
             .catch(console.error);
 
-        if (pinnedMessages.size > 0) {
-            for (var [key, msg] of pinnedMessages.entries()) {
-                if ( msg.content.startsWith("|info|") ) {
-                    return msg;
+        if (pinnedMessages.length > 0) {
+            for (let i = 0; i < pinnedMessages.length; i++) {
+                let msg = pinnedMessages[i];
+                if ( msg.message.content.startsWith("|info|") ) {
+                    return msg.message;
                 }
             }
         }

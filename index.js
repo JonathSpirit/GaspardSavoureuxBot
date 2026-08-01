@@ -235,7 +235,7 @@ bot.on("speech", (msg) => {
     }
 });
 
-bot.on("ready", function () {
+bot.on("clientReady", function () {
     console.log(`Logged in as ${bot.user.tag} !`);
 
     //Avatar

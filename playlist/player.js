@@ -14,9 +14,9 @@ const {
 } = require('discord.js');
 
 const fs = require('fs');
-const {PassThrough} = require('stream');
+const { PassThrough } = require('stream');
+const { spawn } = require("child_process");
 
-const ytdl = require("@distube/ytdl-core");
 const prism = require('prism-media');
 
 const {Song} = require("../playlist/song");
@@ -114,10 +114,37 @@ class GuildPlayer {
         this.player.play(audio);
     }
     
+    async downloadAudio(ytbID) {
+        return new Promise((resolve, reject) => {
+            const args = [
+                "-f", "ba",
+                "--cookies", "./cookies/cookies.txt",
+                "-x",
+                "--audio-format", "opus",
+                "--js-runtimes", "node",
+                "https://www.youtube.com/watch?v="+ytbID,
+                "-o", "./cache/"+ytbID+".cache" //+".%(ext)s"
+            ];
+
+            const child = spawn("yt-dlp", args, {
+                stdio: "inherit" // Print yt-dlp output directly to the console
+            });
+
+            child.on("error", reject);
+
+            child.on("close", (code) => {
+                if (code === 0)
+                    resolve();
+                else
+                    reject(new Error(`yt-dlp exited with code ${code}`));
+            });
+        });
+    }
+
     async playAudioYoutubeUrl(youtubeUrl) {
 
         var ytbID = Utils.extractYoutubeID(youtubeUrl);
-        var cachePath = "./cache/"+ytbID+".cache";
+        var cachePath = "./cache/"+ytbID+".cache.opus";
 
         if (!fs.existsSync("./cache"))
         {
@@ -174,13 +201,14 @@ class GuildPlayer {
 
         console.log("cache file not exists, getting from youtube ! file: "+cachePath);
 
-        const fileStream = fs.createWriteStream(cachePath, {flags: 'w', autoClose: true});
+        try {
+            await this.downloadAudio(ytbID);
+            console.log("Download complete!");
+        } catch (err) {
+            console.error(err);
+        }
 
-        var stream = await ytdl(youtubeUrl, {
-            quality: "highestaudio",
-            filter: "audioonly",
-            highWaterMark: 1 << 25,
-        });
+        const fileStream = fs.createReadStream(cachePath, {flags: 'r', autoClose: true});
 
         const FFmpegArgs = [
             '-analyzeduration',
@@ -206,56 +234,18 @@ class GuildPlayer {
             frameSize: 960
         });
 
-        // Create a PassThrough stream
-        const passThrough = new PassThrough();
+        const outputStream = fileStream.pipe(transcoder).pipe(opus);
 
-        const outputStream = passThrough.pipe(transcoder).pipe(opus);
-        const outputFileStream = passThrough.pipe(fileStream);
-
-        stream.pipe(passThrough);
-
-        outputFileStream.on('error', (err) => {
+        outputStream.on('error', (err) => {
             console.error("file stream error : ", err);
             fileStream.destroy();
             fs.rmSync(cachePath);
         });
-        outputFileStream.on('close', () => {
+        outputStream.on('close', () => {
             console.log("file stream closed");
             fileStream.destroy();
         });
 
-        stream.on('error', (err) => {
-            console.error("ytdl stream error : ", err);
-            opus.destroy();
-            stream.destroy();
-            transcoder.destroy();
-            fileStream.destroy();
-            fs.rmSync(cachePath);
-        });
-
-        outputStream.on('error', (err) => {
-            console.error("stream error : ", err);
-            opus.destroy();
-            stream.destroy();
-            transcoder.destroy();
-            fileStream.destroy();
-            fs.rmSync(cachePath);
-        });
-        outputStream.on('close', () => {
-            console.log("stream closed");
-            opus.destroy();
-            stream.destroy();
-            transcoder.destroy();
-            if (outputFileStream.writable) {
-                outputFileStream.destroy();
-                fs.rmSync(cachePath);
-            }
-            else
-            {
-                outputFileStream.destroy();
-            }
-        });
-        
         if (outputStream.readable) {
             const resource = createAudioResource(outputStream, { inputType: StreamType.Opus });
             this.player.play(resource);

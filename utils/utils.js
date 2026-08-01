@@ -28,7 +28,7 @@ function extractYoutubeID(string) {
 }
 
 function isSpotifyUrl(string) {
-    let regex = new RegExp('(?:https:\\/\\/)?open\\.spotify\\.com\\/track\\/[a-zA-Z0-9]*(?:\\?si=[a-zA-Z0-9]*)?', 'g');
+    let regex = new RegExp('(?:https:\\/\\/)?open\\.spotify\\.com(?:\\/intl-fr)?\\/track\\/[a-zA-Z0-9]*(?:\\?si=[a-zA-Z0-9]*)?', 'g');
     return regex.test(string);
 }
 
